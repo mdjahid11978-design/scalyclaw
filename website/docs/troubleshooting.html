@@ -201,10 +201,10 @@
 <span class="cmd">bun run worker</span>
 
 <span class="cmt"># Check how many jobs are active vs waiting in each queue</span>
-<span class="cmd">redis-cli llen "bull:messages:active"</span>
-<span class="cmd">redis-cli llen "bull:messages:wait"</span>
-<span class="cmd">redis-cli llen "bull:tools:active"</span>
-<span class="cmd">redis-cli llen "bull:tools:wait"</span></pre>
+<span class="cmd">redis-cli llen "bull:scalyclaw-messages:active"</span>
+<span class="cmd">redis-cli llen "bull:scalyclaw-messages:wait"</span>
+<span class="cmd">redis-cli llen "bull:scalyclaw-tools:active"</span>
+<span class="cmd">redis-cli llen "bull:scalyclaw-tools:wait"</span></pre>
         </div>
 
         <p>If the active count equals the configured concurrency limit, the worker is saturated. Either increase the concurrency setting in the dashboard under <strong>Settings &rarr; Workers</strong>, add another worker process, or investigate why active jobs are not completing.</p>
@@ -218,7 +218,7 @@
             <button class="code-block-copy" aria-label="Copy"></button>
           </div>
           <pre><span class="cmt"># Check the failed job for the timeout error in BullMQ</span>
-<span class="cmd">redis-cli lrange "bull:tools:failed" 0 4</span>
+<span class="cmd">redis-cli lrange "bull:scalyclaw-tools:failed" 0 4</span>
 
 <span class="cmt"># Run the skill manually to profile it</span>
 <span class="cmd">bun run /path/to/skill/index.ts</span></pre>
@@ -331,7 +331,7 @@
         <p>For secrets specifically, note that they are stored in Redis under <code>scalyclaw:secret:*</code>. A full Redis backup captures them. If you only need to migrate secrets, export them individually and re-import via the dashboard Vault page or with <code>redis-cli set</code>.</p>
 
         <h4>Can I run multiple nodes?</h4>
-        <p>No. ScalyClaw is designed to run as a single orchestrator node. The messages queue runs with concurrency=1 to serialize message processing for the single user, and running two orchestrator instances against the same Redis would cause race conditions in conversation state. To scale throughput, add more <strong>worker</strong> processes instead — workers are stateless and safe to run in parallel. Multiple workers share the same BullMQ queues and distribute job processing without any coordination issues.</p>
+        <p>No. ScalyClaw is designed to run as a single orchestrator node. Running two orchestrator instances against the same Redis would cause race conditions in conversation state. To scale throughput, add more <strong>worker</strong> processes instead — workers are stateless and safe to run in parallel. Multiple workers share the same BullMQ queues and distribute job processing without any coordination issues.</p>
 
         <h4>How much disk space does it need?</h4>
         <p>Very little. The SQLite memory database grows slowly — roughly 1 MB per 10,000 stored memories including vector embeddings. Redis is in-memory and its footprint depends on queue depth, but a typical idle instance uses well under 50 MB. The ScalyClaw codebase itself (including dependencies) is under 200 MB after <code>bun install</code>.</p>

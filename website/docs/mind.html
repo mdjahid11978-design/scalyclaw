@@ -118,7 +118,7 @@ pays attention, and gives a damn.
 
         <ol>
           <li><strong>Disk files</strong> — <code>mind/IDENTITY.md</code>, <code>mind/SOUL.md</code>, and <code>mind/USER.md</code> are read from disk and prepended verbatim. These are the only user-editable parts of the prompt.</li>
-          <li><strong>Code sections</strong> — seven hardcoded sections defined in <code>scalyclaw/src/prompt/</code> are appended next: <code>orchestrator</code>, <code>tools</code>, <code>home</code>, <code>memory</code>, <code>vault</code>, <code>agents</code>, and <code>skills</code>. These sections describe capabilities and constraints that never change; keeping them in code rather than on disk means they cannot be accidentally edited or deleted.</li>
+          <li><strong>Code sections</strong> — three code-defined sections in <code>scalyclaw/src/prompt/</code> are appended next: <code>core-instructions</code>, <code>knowledge</code>, and <code>extensions</code>. These sections describe capabilities and constraints that never change; keeping them in code rather than on disk means they cannot be accidentally edited or deleted.</li>
           <li><strong>Dynamic data</strong> — the current date and time, active channel context, recent memories retrieved via semantic search over the SQLite vector store, resolved secrets from the vault, the full skill manifest, and all agent definitions are injected last.</li>
         </ol>
 
@@ -136,15 +136,11 @@ pays attention, and gives a damn.
   <span class="kw">const</span> soul     = <span class="kw">await</span> <span class="fn">readMindFile</span>(<span class="str">"SOUL.md"</span>);
   <span class="kw">const</span> user     = <span class="kw">await</span> <span class="fn">readMindFile</span>(<span class="str">"USER.md"</span>);
 
-  <span class="cmt">// 2. Code sections — seven hardcoded capability blocks</span>
+  <span class="cmt">// 2. Code sections — three code-defined capability blocks</span>
   <span class="kw">const</span> sections = [
-    orchestratorSection,
-    toolsSection,
-    homeSection,
-    memorySection,
-    vaultSection,
-    agentsSection,
-    skillsSection,
+    coreInstructionsSection(basePath),
+    KNOWLEDGE_SECTION,
+    EXTENSIONS_SECTION,
   ].<span class="fn">join</span>(<span class="str">"\n\n"</span>);
 
   <span class="cmt">// 3. Dynamic data — time, memories, tools, agents</span>

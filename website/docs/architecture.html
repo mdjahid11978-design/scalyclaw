@@ -76,12 +76,12 @@
 
         <h2 id="message-flow">Message Flow</h2>
 
-        <p>Every inbound message follows a deterministic pipeline. The pipeline is designed so that each stage can short-circuit cleanly — a guard rejection stops processing early without leaking state. BullMQ serialization (concurrency=1 on the messages queue) ensures only one message is processed at a time.</p>
+        <p>Every inbound message follows a deterministic pipeline. The pipeline is designed so that each stage can short-circuit cleanly — a guard rejection stops processing early without leaking state.</p>
 
         <div class="flow-diagram">
 <span class="node">1. Channel receives message</span>
            <span class="arrow">↓</span>
-<span class="node">2. BullMQ messages queue  (concurrency=1 — serialized processing)</span>
+<span class="node">2. BullMQ messages queue  (concurrency=5)</span>
            <span class="arrow">↓  job picked up</span>
 <span class="node">3. Echo guard  (reject messages from self)</span>
            <span class="arrow">↓  passed</span>
@@ -110,7 +110,7 @@
 
         <ul>
           <li><strong>Disk files</strong> — <code>mind/IDENTITY.md</code>, <code>mind/SOUL.md</code>, <code>mind/USER.md</code> (user-editable personality)</li>
-          <li><strong>Code sections</strong> — six hardcoded sections in <code>scalyclaw/src/prompt/</code>: orchestrator, home, memory, vault, agents, skills</li>
+          <li><strong>Code sections</strong> — three code-defined sections in <code>scalyclaw/src/prompt/</code>: <code>core-instructions</code>, <code>knowledge</code>, and <code>extensions</code></li>
           <li><strong>Dynamic data</strong> — current time, active channel, recent memories retrieved via semantic search, resolved secrets from vault, skill manifests, agent definitions</li>
         </ul>
 
@@ -223,7 +223,7 @@ scalyclaw worker start &amp;</pre>
     <span class="prop">"embeddingModel"</span>: <span class="str">"auto"</span>
   },
   <span class="prop">"queue"</span>: {
-    <span class="prop">"lockDuration"</span>: <span class="num">120000</span>,
+    <span class="prop">"lockDuration"</span>: <span class="num">18300000</span>,
     <span class="prop">"stalledInterval"</span>: <span class="num">30000</span>,
     <span class="prop">"limiter"</span>: { <span class="prop">"max"</span>: <span class="num">10</span>, <span class="prop">"duration"</span>: <span class="num">1000</span> },
     <span class="prop">"removeOnComplete"</span>: { <span class="prop">"age"</span>: <span class="num">86400</span>, <span class="prop">"count"</span>: <span class="num">1000</span> },

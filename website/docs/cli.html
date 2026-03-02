@@ -45,7 +45,7 @@
         </div>
 
         <h4><code>scalyclaw stop</code></h4>
-        <p>Gracefully stop all running ScalyClaw processes. Sends a shutdown signal via the system BullMQ queue; each process drains its active jobs before exiting.</p>
+        <p>Gracefully stop all running ScalyClaw processes. Sends a shutdown signal via Redis pub/sub; each process drains its active jobs before exiting.</p>
         <div class="code-block">
           <div class="code-block-header">
             <span class="code-block-lang">bash</span>
@@ -79,7 +79,7 @@
         <p>Commands for the node process — the orchestrator that manages channels, builds system prompts, and enqueues LLM work.</p>
 
         <h4><code>scalyclaw node start</code></h4>
-        <p>Start the node process in the foreground. The node connects to all configured channels and begins consuming from the <code>messages</code> and <code>system</code> BullMQ queues.</p>
+        <p>Start the node process in the foreground. The node connects to all configured channels and begins consuming from the <code>messages</code>, <code>agents</code>, and <code>internal</code> BullMQ queues.</p>
         <div class="code-block">
           <div class="code-block-header">
             <span class="code-block-lang">bash</span>
@@ -110,7 +110,7 @@
 
         <h3>Worker</h3>
 
-        <p>Commands for worker processes — stateless BullMQ consumers that execute code, run skills, and forward MCP tool calls.</p>
+        <p>Commands for worker processes — stateless BullMQ consumers that execute code, run skills, and execute shell commands.</p>
 
         <h4><code>scalyclaw worker start</code></h4>
         <p>Start a worker process. Multiple workers can run simultaneously against the same Redis instance; BullMQ distributes jobs across them automatically. Use <code>--concurrency</code> to control how many jobs a single worker processes in parallel.</p>
@@ -148,7 +148,7 @@
         <p>Commands for the dashboard process — the React admin interface served by a lightweight HTTP server.</p>
 
         <h4><code>scalyclaw dashboard start</code></h4>
-        <p>Start the dashboard server. Defaults to port <code>3000</code>. Use <code>--port</code> to change it.</p>
+        <p>Start the dashboard server. Defaults to port <code>4173</code>. Use <code>--port</code> to change it.</p>
         <div class="code-block">
           <div class="code-block-header">
             <span class="code-block-lang">bash</span>

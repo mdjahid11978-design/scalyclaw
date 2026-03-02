@@ -91,49 +91,14 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>list_agents</code></td>
-              <td>List all configured agents and their current state.</td>
-              <td>—</td>
-            </tr>
-            <tr>
               <td><code>create_agent</code></td>
               <td>Create a new agent with a given name, system prompt, and configuration.</td>
               <td><code>name</code> — unique agent name<br /><code>prompt</code> — system prompt text<br /><code>models</code>, <code>tools</code>, <code>skills</code> — optional initial config</td>
             </tr>
             <tr>
-              <td><code>update_agent</code></td>
-              <td>Update the configuration of an existing agent.</td>
-              <td><code>name</code> — agent to update<br /><code>prompt</code>, <code>models</code>, etc. — fields to change</td>
-            </tr>
-            <tr>
               <td><code>delete_agent</code></td>
               <td>Permanently delete an agent by name.</td>
               <td><code>name</code> — agent to delete</td>
-            </tr>
-            <tr>
-              <td><code>toggle_agent</code></td>
-              <td>Enable or disable an agent without deleting it.</td>
-              <td><code>name</code> — agent name<br /><code>enabled</code> — boolean</td>
-            </tr>
-            <tr>
-              <td><code>set_agent_models</code></td>
-              <td>Set the list of models an agent is allowed to use.</td>
-              <td><code>name</code> — agent name<br /><code>models</code> — array of model IDs</td>
-            </tr>
-            <tr>
-              <td><code>set_agent_skills</code></td>
-              <td>Set the skills available to an agent.</td>
-              <td><code>name</code> — agent name<br /><code>skills</code> — array of skill names</td>
-            </tr>
-            <tr>
-              <td><code>set_agent_tools</code></td>
-              <td>Set the tools available to an agent.</td>
-              <td><code>name</code> — agent name<br /><code>tools</code> — array of tool names</td>
-            </tr>
-            <tr>
-              <td><code>set_agent_mcps</code></td>
-              <td>Set the MCP server connections available to an agent.</td>
-              <td><code>name</code> — agent name<br /><code>mcps</code> — array of MCP server names</td>
             </tr>
           </tbody>
         </table>
@@ -198,26 +163,6 @@
           </tbody>
         </table>
 
-        <h4>Models</h4>
-
-        <table>
-          <thead>
-            <tr><th>Tool</th><th>Description</th><th>Key Parameters</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>list_models</code></td>
-              <td>List all available LLM models and their enabled state.</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><code>toggle_model</code></td>
-              <td>Enable or disable a specific LLM model.</td>
-              <td><code>model</code> — model ID<br /><code>enabled</code> — boolean</td>
-            </tr>
-          </tbody>
-        </table>
-
         <h4>Skills</h4>
 
         <table>
@@ -226,21 +171,6 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>list_skills</code></td>
-              <td>List all deployed skills and their enabled state.</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><code>toggle_skill</code></td>
-              <td>Enable or disable a specific skill.</td>
-              <td><code>skill</code> — skill name<br /><code>enabled</code> — boolean</td>
-            </tr>
-            <tr>
-              <td><code>delete_skill</code></td>
-              <td>Delete a skill by ID. Removes the skill directory from disk and unregisters it from config.</td>
-              <td><code>id</code> — skill ID to delete</td>
-            </tr>
-            <tr>
               <td><code>register_skill</code></td>
               <td>Register a skill after writing its files. Loads from disk, runs the security guard, adds to config, and notifies workers.</td>
               <td><code>id</code> — skill ID (e.g. <code>"weather-skill"</code>)</td>
@@ -248,7 +178,7 @@
           </tbody>
         </table>
 
-        <h4>Guards</h4>
+        <h4>System Info</h4>
 
         <table>
           <thead>
@@ -256,92 +186,20 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>list_guards</code></td>
-              <td>List all guard prompts and their enabled state.</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><code>toggle_guard</code></td>
-              <td>Enable or disable a specific guard prompt.</td>
-              <td><code>guard</code> — guard name<br /><code>enabled</code> — boolean</td>
+              <td><code>system_info</code></td>
+              <td>Query system information. A single unified tool that covers agents, skills, models, guards, queues, processes, usage, config, and vault.</td>
+              <td><code>section</code> — one of <code>"agents"</code>, <code>"skills"</code>, <code>"models"</code>, <code>"guards"</code>, <code>"queues"</code>, <code>"processes"</code>, <code>"usage"</code>, <code>"config"</code>, <code>"vault"</code></td>
             </tr>
           </tbody>
         </table>
 
-        <h4>Configuration</h4>
-
-        <table>
-          <thead>
-            <tr><th>Tool</th><th>Description</th><th>Key Parameters</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>get_config</code></td>
-              <td>Read the current system configuration stored in Redis at <code>scalyclaw:config</code>.</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><code>update_config</code></td>
-              <td>Update one or more configuration keys.</td>
-              <td><code>changes</code> — object with key/value pairs to update</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h4>Usage</h4>
-
-        <table>
-          <thead>
-            <tr><th>Tool</th><th>Description</th><th>Key Parameters</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>get_usage</code></td>
-              <td>Retrieve token usage and cost statistics.</td>
-              <td>—</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h4>Queue and Process Management</h4>
-
-        <table>
-          <thead>
-            <tr><th>Tool</th><th>Description</th><th>Key Parameters</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>list_processes</code></td>
-              <td>List running system processes.</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><code>list_queues</code></td>
-              <td>List all BullMQ queues and their current state (active, waiting, completed, failed counts).</td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td><code>list_jobs</code></td>
-              <td>List jobs in a given queue, optionally filtered by state.</td>
-              <td><code>queue</code> — queue name<br /><code>state</code> — optional filter (e.g. <code>"active"</code>, <code>"failed"</code>)</td>
-            </tr>
-            <tr>
-              <td><code>pause_queue</code></td>
-              <td>Pause a BullMQ queue so no new jobs are picked up by workers.</td>
-              <td><code>queue</code> — queue name to pause</td>
-            </tr>
-            <tr>
-              <td><code>resume_queue</code></td>
-              <td>Resume a previously paused BullMQ queue.</td>
-              <td><code>queue</code> — queue name to resume</td>
-            </tr>
-            <tr>
-              <td><code>clean_queue</code></td>
-              <td>Remove completed or failed jobs from a queue up to a given age.</td>
-              <td><code>queue</code> — queue name<br /><code>grace</code> — minimum job age in ms<br /><code>state</code> — job state to clean</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="callout callout-info">
+          <div class="callout-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Admin tools
+          </div>
+          <p>Management operations like <code>list_models</code>, <code>toggle_model</code>, <code>list_guards</code>, <code>toggle_guard</code>, <code>get_config</code>, <code>update_config</code>, <code>list_queues</code>, <code>pause_queue</code>, etc. are registered as admin tools. They are callable via the REST API and dashboard but are not exposed to the LLM directly. The LLM uses <code>system_info</code> for read access instead.</p>
+        </div>
 
         <h4>File I/O</h4>
 
@@ -351,49 +209,29 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>read_file</code></td>
-              <td>Read the full contents of a file from disk.</td>
-              <td><code>path</code> — absolute file path</td>
+              <td><code>list_directory</code></td>
+              <td>List the contents of a directory.</td>
+              <td><code>path</code> — directory path</td>
             </tr>
             <tr>
-              <td><code>read_file_lines</code></td>
-              <td>Read a specific range of lines from a file.</td>
-              <td><code>path</code> — absolute file path<br /><code>start</code> — starting line number<br /><code>end</code> — ending line number</td>
+              <td><code>file_read</code></td>
+              <td>Read file content — full file or a specific line range.</td>
+              <td><code>path</code> — absolute file path<br /><code>startLine</code>, <code>endLine</code> — optional line range</td>
             </tr>
             <tr>
-              <td><code>write_file</code></td>
-              <td>Write (or overwrite) a file with the given content.</td>
-              <td><code>path</code> — absolute file path<br /><code>content</code> — text to write</td>
+              <td><code>file_write</code></td>
+              <td>Create, overwrite, or append to a file.</td>
+              <td><code>path</code> — absolute file path<br /><code>content</code> — text to write<br /><code>mode</code> — <code>"overwrite"</code> | <code>"append"</code></td>
             </tr>
             <tr>
-              <td><code>patch_file</code></td>
-              <td>Apply a targeted text replacement inside a file without rewriting the whole thing.</td>
+              <td><code>file_edit</code></td>
+              <td>Apply a targeted search-and-replace inside a file.</td>
               <td><code>path</code> — absolute file path<br /><code>old</code> — exact string to find<br /><code>new</code> — replacement string</td>
             </tr>
             <tr>
-              <td><code>append_file</code></td>
-              <td>Append content to the end of a file.</td>
-              <td><code>path</code> — absolute file path<br /><code>content</code> — text to append</td>
-            </tr>
-            <tr>
-              <td><code>diff_files</code></td>
-              <td>Compute a unified diff between two files.</td>
-              <td><code>path_a</code> — first file path<br /><code>path_b</code> — second file path</td>
-            </tr>
-            <tr>
-              <td><code>file_info</code></td>
-              <td>Return metadata about a file (size, modification time, permissions).</td>
-              <td><code>path</code> — absolute file path</td>
-            </tr>
-            <tr>
-              <td><code>copy_file</code></td>
-              <td>Copy a file from one path to another.</td>
-              <td><code>src</code> — source path<br /><code>dest</code> — destination path</td>
-            </tr>
-            <tr>
-              <td><code>copy_folder</code></td>
-              <td>Recursively copy a folder from one path to another.</td>
-              <td><code>src</code> — source folder path<br /><code>dest</code> — destination folder path</td>
+              <td><code>file_ops</code></td>
+              <td>File operations: copy, delete, rename, diff, or info.</td>
+              <td><code>operation</code> — <code>"copy"</code> | <code>"delete"</code> | <code>"rename"</code> | <code>"diff"</code> | <code>"info"</code><br /><code>path</code> — target path<br /><code>dest</code> — destination (for copy/rename)</td>
             </tr>
           </tbody>
         </table>
@@ -415,7 +253,7 @@
 
         <h3 id="job-tools">Job Tools</h3>
 
-        <p>Job tools are dispatched to BullMQ worker queues. The Node process enqueues a job and awaits the result asynchronously. This provides process isolation for arbitrary code execution, a separate concurrency domain for agent delegation, and the ability to scale workers independently.</p>
+        <p>Job tools are not called by the LLM directly — they are invoked via <code>submit_job</code> or <code>submit_parallel_jobs</code>. The <code>TOOL_QUEUE</code> map in <code>tool-impl.ts</code> routes them to BullMQ queues. The Node enqueues a job and awaits the result asynchronously. This provides process isolation for arbitrary code execution and a separate concurrency domain for agent delegation.</p>
 
         <table>
           <thead>
@@ -448,26 +286,26 @@
             </tr>
             <tr>
               <td><code>schedule_reminder</code></td>
-              <td>Schedule a one-shot text reminder. The message is delivered back to the channel at the specified time.</td>
-              <td><code>scalyclaw-internal</code></td>
+              <td>Schedule a one-shot text reminder. Runs locally on the Node and enqueues a delayed job to <code>scalyclaw-internal</code>.</td>
+              <td>— (inline → <code>scalyclaw-internal</code>)</td>
               <td><code>message</code> — content of the reminder<br /><code>at</code> — ISO 8601 timestamp<br /><code>timezone</code> — IANA timezone string</td>
             </tr>
             <tr>
               <td><code>schedule_recurrent_reminder</code></td>
-              <td>Schedule a repeating reminder on a cron schedule.</td>
-              <td><code>scalyclaw-internal</code></td>
+              <td>Schedule a repeating reminder. Runs locally on the Node and enqueues a repeating job to <code>scalyclaw-internal</code>.</td>
+              <td>— (inline → <code>scalyclaw-internal</code>)</td>
               <td><code>message</code> — content of the reminder<br /><code>cron</code> — cron expression<br /><code>timezone</code> — IANA timezone string</td>
             </tr>
             <tr>
               <td><code>schedule_task</code></td>
-              <td>Schedule a one-shot LLM task to run at a future time.</td>
-              <td><code>scalyclaw-internal</code></td>
+              <td>Schedule a one-shot LLM task. Runs locally on the Node and enqueues a delayed job to <code>scalyclaw-internal</code>.</td>
+              <td>— (inline → <code>scalyclaw-internal</code>)</td>
               <td><code>task</code> — natural-language task description<br /><code>at</code> — ISO 8601 timestamp</td>
             </tr>
             <tr>
               <td><code>schedule_recurrent_task</code></td>
-              <td>Schedule a repeating LLM task on a cron schedule.</td>
-              <td><code>scalyclaw-internal</code></td>
+              <td>Schedule a repeating LLM task. Runs locally on the Node and enqueues a repeating job to <code>scalyclaw-internal</code>.</td>
+              <td>— (inline → <code>scalyclaw-internal</code>)</td>
               <td><code>task</code> — natural-language task description<br /><code>cron</code> — cron expression<br /><code>timezone</code> — IANA timezone string</td>
             </tr>
           </tbody>
@@ -484,23 +322,28 @@
           <tbody>
             <tr>
               <td><code>submit_job</code></td>
-              <td>Submit a single job to a queue and return its job ID immediately without waiting for completion.</td>
-              <td><code>queue</code> — target queue<br /><code>data</code> — job payload</td>
+              <td>Execute a job tool (any tool from the job tools list above) and wait for the result.</td>
+              <td><code>toolName</code> — job tool to execute (e.g. <code>"execute_code"</code>, <code>"delegate_agent"</code>)<br /><code>payload</code> — tool-specific parameters</td>
             </tr>
             <tr>
               <td><code>submit_parallel_jobs</code></td>
-              <td>Submit multiple jobs to a queue in parallel and return all job IDs.</td>
-              <td><code>queue</code> — target queue<br /><code>jobs</code> — array of job payloads</td>
+              <td>Execute multiple tools in parallel and wait for all results.</td>
+              <td><code>jobs</code> — array of <code>{ toolName, payload }</code> objects</td>
             </tr>
             <tr>
               <td><code>get_job</code></td>
-              <td>Poll the status and result of a previously submitted job by ID.</td>
-              <td><code>queue</code> — queue the job belongs to<br /><code>id</code> — job ID</td>
+              <td>Get the status and result of a job by ID.</td>
+              <td><code>id</code> — job ID</td>
             </tr>
             <tr>
               <td><code>list_active_jobs</code></td>
-              <td>List all jobs currently in progress across queues.</td>
+              <td>List active and recent jobs across queues.</td>
               <td>—</td>
+            </tr>
+            <tr>
+              <td><code>stop_job</code></td>
+              <td>Stop a running or pending job.</td>
+              <td><code>id</code> — job ID to stop</td>
             </tr>
           </tbody>
         </table>
@@ -586,7 +429,7 @@
             <tr>
               <td>Execution target</td>
               <td>Local or worker queue (see routing table below)</td>
-              <td>Forwarded to the MCP server; runs in the server process</td>
+              <td>Node — inline; forwarded to the MCP server via the Node's MCP client</td>
             </tr>
             <tr>
               <td>Hot reload</td>
@@ -645,40 +488,22 @@
               <td>Sub-agents run their own orchestrator loop; separate queue for independent scaling</td>
             </tr>
             <tr>
-              <td><code>schedule_reminder</code></td>
+              <td><code>schedule_*</code> tools</td>
               <td>Node — inline</td>
-              <td><code>internal</code> → <code>scalyclaw-internal</code></td>
-              <td>Enqueues a BullMQ delayed job; the enqueue itself is fast and synchronous</td>
+              <td>— (not in <code>TOOL_QUEUE</code>)</td>
+              <td>The handler runs locally and enqueues a delayed/repeating job to <code>scalyclaw-internal</code> from within its own code</td>
             </tr>
             <tr>
-              <td><code>schedule_recurrent_reminder</code></td>
+              <td>MCP tools</td>
               <td>Node — inline</td>
-              <td><code>internal</code> → <code>scalyclaw-internal</code></td>
-              <td>Enqueues a repeating BullMQ job</td>
-            </tr>
-            <tr>
-              <td><code>schedule_task</code></td>
-              <td>Node — inline</td>
-              <td><code>internal</code> → <code>scalyclaw-internal</code></td>
-              <td>Enqueues a one-shot LLM task job</td>
-            </tr>
-            <tr>
-              <td><code>schedule_recurrent_task</code></td>
-              <td>Node — inline</td>
-              <td><code>internal</code> → <code>scalyclaw-internal</code></td>
-              <td>Enqueues a repeating LLM task job</td>
+              <td>— (not in <code>TOOL_QUEUE</code>)</td>
+              <td>Forwarded to the MCP server via <code>callMcpTool()</code>; the Node holds the MCP client connections</td>
             </tr>
             <tr>
               <td>All other built-in tools</td>
               <td>Node — inline</td>
               <td>— (no queue)</td>
               <td>Lightweight operations (SQLite, Redis, filesystem); no isolation or offloading needed</td>
-            </tr>
-            <tr>
-              <td>MCP tools</td>
-              <td>Worker → MCP server</td>
-              <td><code>tools</code> → <code>scalyclaw-tools</code></td>
-              <td>Forwarded to the MCP server process; worker holds the MCP client connections</td>
             </tr>
           </tbody>
         </table>
@@ -691,25 +516,22 @@
             <button class="code-block-copy" aria-label="Copy"></button>
           </div>
           <pre><span class="cmt">// tool-impl.ts — TOOL_QUEUE map (simplified)</span>
-<span class="kw">const</span> <span class="typ">TOOL_QUEUE</span>: <span class="typ">Map</span>&lt;<span class="typ">string</span>, <span class="str">"tools"</span> <span class="op">|</span> <span class="str">"agents"</span> <span class="op">|</span> <span class="kw">null</span>&gt; = <span class="kw">new</span> <span class="typ">Map</span>([
-  [<span class="str">"execute_command"</span>,            <span class="str">"tools"</span>],    <span class="cmt">// → scalyclaw-tools (sandboxed worker)</span>
-  [<span class="str">"execute_skill"</span>,              <span class="str">"tools"</span>],    <span class="cmt">// → scalyclaw-tools (skill runner)</span>
-  [<span class="str">"execute_code"</span>,               <span class="str">"tools"</span>],    <span class="cmt">// → scalyclaw-tools (sandboxed worker)</span>
-  [<span class="str">"delegate_agent"</span>,             <span class="str">"agents"</span>],   <span class="cmt">// → scalyclaw-agents (agent executor)</span>
-  <span class="cmt">// everything else → null → local executeTool()</span>
-]);
+<span class="kw">const</span> <span class="typ">TOOL_QUEUE</span>: <span class="typ">Partial</span>&lt;<span class="typ">Record</span>&lt;<span class="typ">string</span>, <span class="typ">QueueKey</span>&gt;&gt; = {
+  <span class="prop">execute_command</span>: <span class="str">"tools"</span>,    <span class="cmt">// → scalyclaw-tools (sandboxed worker)</span>
+  <span class="prop">execute_skill</span>:   <span class="str">"tools"</span>,    <span class="cmt">// → scalyclaw-tools (skill runner)</span>
+  <span class="prop">execute_code</span>:    <span class="str">"tools"</span>,    <span class="cmt">// → scalyclaw-tools (sandboxed worker)</span>
+  <span class="prop">delegate_agent</span>:  <span class="str">"agents"</span>,   <span class="cmt">// → scalyclaw-agents (agent executor)</span>
+};
 
-<span class="kw">async function</span> <span class="fn">routeTool</span>(call: <span class="typ">ToolCall</span>): <span class="typ">Promise</span>&lt;<span class="typ">ToolResult</span>&gt; {
-  <span class="kw">const</span> queue = <span class="typ">TOOL_QUEUE</span>.<span class="fn">get</span>(call.name);
-
-  <span class="kw">if</span> (queue === <span class="str">"tools"</span>) {
-    <span class="kw">return</span> <span class="fn">dispatchToQueue</span>(<span class="str">"tools"</span>, call);    <span class="cmt">// await BullMQ job result</span>
+<span class="kw">async function</span> <span class="fn">dispatchTool</span>(name: <span class="typ">string</span>, input: <span class="typ">unknown</span>, ctx: <span class="typ">ToolContext</span>): <span class="typ">Promise</span>&lt;<span class="typ">string</span>&gt; {
+  <span class="kw">const</span> queueKey = <span class="typ">TOOL_QUEUE</span>[name];
+  <span class="kw">if</span> (queueKey) {
+    <span class="kw">return</span> <span class="fn">enqueueAndWait</span>(queueKey, name, input, ctx);  <span class="cmt">// await BullMQ job result</span>
   }
-  <span class="kw">if</span> (queue === <span class="str">"agents"</span>) {
-    <span class="kw">return</span> <span class="fn">dispatchToQueue</span>(<span class="str">"agents"</span>, call);   <span class="cmt">// await BullMQ job result</span>
+  <span class="kw">if</span> (name.<span class="fn">startsWith</span>(<span class="str">"mcp_"</span>)) {
+    <span class="kw">return</span> <span class="fn">callMcpTool</span>(name, input);  <span class="cmt">// Node-local MCP client call</span>
   }
-  <span class="cmt">// null → run inline in the Node process</span>
-  <span class="kw">return</span> <span class="fn">executeTool</span>(call);
+  <span class="kw">return</span> <span class="fn">executeTool</span>(name, input, ctx);  <span class="cmt">// run inline in the Node</span>
 }</pre>
         </div>
 
@@ -727,9 +549,9 @@
         <div class="callout callout-info">
           <div class="callout-label">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            MCP tools and the tools queue
+            MCP tools run locally on the Node
           </div>
-          <p>MCP tools discovered from connected MCP servers are also routed through the <code>tools</code> BullMQ queue (<code>scalyclaw-tools</code>). The worker holds the MCP client connections, so all communication with MCP servers — including <code>tools/call</code> requests — is handled by the worker, not the Node. The Node simply enqueues the call and awaits the result, the same way it does for <code>execute_code</code> and <code>execute_skill</code>.</p>
+          <p>MCP tools discovered from connected MCP servers are executed inline on the Node process via <code>callMcpTool()</code>. They are <strong>not</strong> routed through any BullMQ queue. The Node holds the MCP client connections and forwards <code>tools/call</code> requests directly to the MCP server process. This is different from <code>execute_code</code> and <code>execute_skill</code>, which are dispatched to the worker via the <code>scalyclaw-tools</code> queue.</p>
         </div>
 
         <h2 id="agent-scoping">Agent Tool Scoping</h2>
@@ -755,7 +577,7 @@
             </tr>
             <tr>
               <td>File I/O</td>
-              <td>All file I/O tools (<code>read_file</code>, <code>write_file</code>, <code>patch_file</code>, etc.)</td>
+              <td>All file I/O tools (<code>file_read</code>, <code>file_write</code>, <code>file_edit</code>, <code>file_ops</code>, <code>list_directory</code>)</td>
             </tr>
             <tr>
               <td>Code / Skills / Commands</td>

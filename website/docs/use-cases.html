@@ -25,7 +25,7 @@
 
         <h3>What It Does</h3>
         <ul>
-          <li>Stores facts, preferences, and decisions via <code>memory_store</code> with typed entries (<code>fact</code>, <code>preference</code>, <code>event</code>), tags for categorization, and confidence scores (0–3)</li>
+          <li>Stores facts, preferences, and decisions via <code>memory_store</code> with typed entries (<code>fact</code>, <code>preference</code>, <code>event</code>), tags for categorization, and confidence scores (0–1)</li>
           <li>Retrieves context across channels via <code>memory_search</code> — semantic vector search (sqlite-vec) with FTS5 fallback for text matching</li>
           <li>Proactively follows up when you go idle — surfaces task results, reminders, or unfinished topics (configurable idle threshold, cooldown, and quiet hours)</li>
           <li>Personality defined in <code>mind/IDENTITY.md</code> (tone, behavior), grounded by core values in <code>mind/SOUL.md</code>, and personalized with your info in <code>mind/USER.md</code></li>
@@ -79,7 +79,7 @@
     content: "User chose PostgreSQL over MySQL for the new project",
     tags: ["project:new", "tech:postgresql"],
     source: "user-stated",
-    confidence: 3
+    confidence: 1
   }</span>
 
 <span class="cmt">— Discord, evening —</span>
@@ -265,7 +265,7 @@
           <li>STDIO transport for local processes (e.g., <code>npx @modelcontextprotocol/server-filesystem</code>), HTTP/SSE for remote endpoints</li>
           <li>Environment variable whitelist enforced — dangerous vars like <code>LD_PRELOAD</code>, <code>NODE_OPTIONS</code>, <code>DYLD_INSERT_LIBRARIES</code> are blocked</li>
           <li>Agents can be scoped to specific MCP servers via the <code>mcpServers</code> field — only see tools from their assigned servers</li>
-          <li>Hot-reload via Redis pub/sub (<code>scalyclaw:mcp:reload</code>) — add, remove, or reconfigure servers without restart</li>
+          <li>Hot-reload via Redis pub/sub (<code>scalyclaw:config:reload</code>) — add, remove, or reconfigure servers without restart</li>
           <li>Connection status tracking: <code>connected</code>, <code>disconnected</code>, <code>error</code> — visible in the dashboard MCP page</li>
         </ul>
 
@@ -961,7 +961,7 @@
     content: "Restaurant receipt, Bistro Marcel, total €47.50",
     tags: ["expense:dining", "expense:business"],
     source: "user-stated",
-    confidence: 3
+    confidence: 1
   }</span>
 
 <span class="fn">You:</span>       <span class="str">How much have I spent on dining this month?</span>
@@ -979,7 +979,7 @@
 
         <h3>What It Does</h3>
         <ul>
-          <li><code>memory_store</code> — store with <code>type</code> (fact, preference, event, note, etc.), <code>subject</code>, <code>content</code>, <code>tags</code> (array), <code>confidence</code> (0–3), <code>source</code> (user-stated, inferred), and optional <code>ttl</code> (e.g., <code>"7d"</code>, <code>"1h"</code>) for auto-expiration</li>
+          <li><code>memory_store</code> — store with <code>type</code> (fact, preference, event, note, etc.), <code>subject</code>, <code>content</code>, <code>tags</code> (array), <code>confidence</code> (0–1), <code>source</code> (user-stated, inferred), and optional <code>ttl</code> (e.g., <code>"7d"</code>, <code>"1h"</code>) for auto-expiration</li>
           <li><code>memory_search</code> — semantic vector search with optional <code>topK</code>, <code>type</code> filter, and <code>tags</code> filter (AND logic). Falls back to FTS5 if sqlite-vec is unavailable</li>
           <li><code>memory_recall</code> — browse by ID, type, or tags (no search query needed)</li>
           <li><code>memory_update</code> — update subject, content, tags, or confidence of an existing memory</li>
@@ -1006,7 +1006,7 @@
     content: "User is allergic to shellfish. Important health information.",
     tags: ["health", "allergy", "food"],
     source: "user-stated",
-    confidence: 3
+    confidence: 1
   }
   (no TTL = permanent)</span>
 
@@ -2188,7 +2188,7 @@
 
 <span class="cmt">→ memory_store: { type: "fact",
     content: "Habits: 1) 30 min exercise, 2) read 20 pages, 3) no sugar",
-    tags: ["habit:definition"], confidence: 3 }
+    tags: ["habit:definition"], confidence: 1 }
 → submit_job: { toolName: "schedule_recurrent_reminder",
     payload: { task: "Daily habit check-in: exercise, reading, no sugar",
     cron: "0 7 * * *", timezone: "America/New_York" } }
@@ -2290,7 +2290,7 @@
 <span class="cmt">→ memory_store: { type: "fact",
     content: "Project: API v3 Migration. 4 milestones. Schema design (Mar 10),
     endpoint impl (Mar 20), integration tests (Mar 25), deploy (Mar 31)",
-    tags: ["project:api-v3", "milestone"], confidence: 3 }
+    tags: ["project:api-v3", "milestone"], confidence: 1 }
 → submit_job: { toolName: "schedule_reminder",
     payload: { message: "API v3 milestone due today: Schema design",
     at: "2026-03-10T09:00:00Z" } }
@@ -2452,7 +2452,7 @@
     content: "Journal: Shipped auth refactor (3 weeks). Team demo — positive VP feedback.
     Feeling relieved and motivated. Next: billing module.",
     tags: ["journal", "date:2026-03-02", "mood:positive", "topic:work"],
-    source: "user-stated", confidence: 3 }</span>
+    source: "user-stated", confidence: 1 }</span>
 
 <span class="fn">ScalyClaw:</span> <span class="str">Nice — 3 weeks of work shipped and recognized. Logged.</span>
 
@@ -2495,7 +2495,7 @@
 <span class="cmt">→ memory_store: { type: "event",
     content: "Budget approval request: $15,000 for new staging cluster.
     Status: pending. Escalation: CTO if no response by Thursday.",
-    tags: ["approval", "status:pending", "budget"], confidence: 3 }
+    tags: ["approval", "status:pending", "budget"], confidence: 1 }
 → submit_job: { toolName: "schedule_task",
     payload: { task: "Check memory for staging cluster budget approval (tag: approval, status:pending).
            If still pending, update status to 'escalated' and alert via send_message

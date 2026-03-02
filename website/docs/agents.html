@@ -181,8 +181,8 @@ reliable source, say so.</pre>
     { <span class="prop">"model"</span>: <span class="str">"claude-opus-4-6"</span>, <span class="prop">"weight"</span>: <span class="num">1</span>, <span class="prop">"priority"</span>: <span class="num">1</span> }
   ],
   <span class="prop">"skills"</span>: [],
-  <span class="prop">"tools"</span>: [<span class="str">"web_search"</span>, <span class="str">"fetch_url"</span>, <span class="str">"memory_store"</span>, <span class="str">"memory_search"</span>],
-  <span class="prop">"mcpServers"</span>: []
+  <span class="prop">"tools"</span>: [<span class="str">"memory_store"</span>, <span class="str">"memory_search"</span>, <span class="str">"file_read"</span>, <span class="str">"file_write"</span>],
+  <span class="prop">"mcpServers"</span>: [<span class="str">"web-tools"</span>],  <span class="cmt">// MCP tools like web_search and fetch_url come from MCP servers</span>
 }</pre>
         </div>
 
