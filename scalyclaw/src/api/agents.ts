@@ -77,10 +77,6 @@ export function registerAgentsRoutes(server: FastifyInstance): void {
       const { enabled } = request.body ?? {};
       if (typeof enabled !== 'boolean') return reply.status(400).send({ error: 'enabled (boolean) is required' });
 
-      if (id === 'skill-creator-agent' && enabled === false) {
-        return reply.status(403).send({ error: "Cannot disable built-in agent 'skill-creator-agent'" });
-      }
-
       const config = getConfig();
       const entry = config.orchestrator.agents.find(a => a.id === id);
       if (entry) {
@@ -99,10 +95,6 @@ export function registerAgentsRoutes(server: FastifyInstance): void {
     Params: { id: string };
     Body: { name?: string; description?: string; systemPrompt?: string; maxIterations?: number; models?: { model: string; weight: number; priority: number }[]; skills?: string[]; tools?: string[]; mcpServers?: string[] };
   }>('/api/agents/:id', async (request, reply) => {
-    if (request.params.id === 'skill-creator-agent') {
-      return reply.status(403).send({ error: "Cannot edit built-in agent 'skill-creator-agent'" });
-    }
-
     // Run agent guard before updating — merge with existing agent data
     const existing = getAgent(request.params.id);
     if (!existing) return reply.status(404).send({ error: 'Agent not found' });
@@ -126,10 +118,6 @@ export function registerAgentsRoutes(server: FastifyInstance): void {
 
   // DELETE /api/agents/:id
   server.delete<{ Params: { id: string } }>('/api/agents/:id', async (request, reply) => {
-    if (request.params.id === 'skill-creator-agent') {
-      return reply.status(403).send({ error: "Cannot delete built-in agent 'skill-creator-agent'" });
-    }
-
     const deleted = await deleteAgent(request.params.id);
     if (!deleted) return reply.status(404).send({ error: 'Agent not found' });
     await publishAgentReload();

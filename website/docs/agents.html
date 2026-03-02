@@ -213,22 +213,6 @@ reliable source, say so.</pre>
           </tbody>
         </table>
 
-        <h3>Built-in agents</h3>
-
-        <p>ScalyClaw ships with one built-in agent out of the box:</p>
-
-        <table>
-          <thead>
-            <tr><th>ID</th><th>Purpose</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>skill-creator-agent</code></td>
-              <td>Creates new skills automatically when the orchestrator determines a reusable skill is needed</td>
-            </tr>
-          </tbody>
-        </table>
-
         <h3>Hot-reload</h3>
 
         <p>Every time you save an agent's config or <code>AGENT.md</code>, ScalyClaw publishes to the <code>scalyclaw:agents:reload</code> Redis pub/sub channel. All running workers subscribe to this channel and refresh their in-memory agent registry immediately — no process restart needed.</p>

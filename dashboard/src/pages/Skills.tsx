@@ -202,7 +202,6 @@ export default function Skills() {
               {skills.map((skill) => {
                 const id = String(skill.id);
                 const enabled = Boolean(skill.enabled);
-                const builtin = id === 'skill-creator-agent';
                 return (
                   <TableRow key={id}>
                     <TableCell className="font-mono text-sm">{id}</TableCell>
@@ -220,43 +219,37 @@ export default function Skills() {
                     <TableCell>
                       <Switch
                         checked={enabled}
-                        disabled={builtin || togglingId === id}
+                        disabled={togglingId === id}
                         onCheckedChange={(checked) => handleToggle(id, checked)}
                       />
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {!builtin && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openReadme(id)}
-                            title="View / Edit SKILL.md"
-                          >
-                            <FileText className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {!builtin && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={downloadingId === id}
-                            onClick={() => handleDownload(id)}
-                            title="Download as zip"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {!builtin && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={deletingId === id}
-                            onClick={() => handleDelete(id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReadme(id)}
+                          title="View / Edit SKILL.md"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={downloadingId === id}
+                          onClick={() => handleDownload(id)}
+                          title="Download as zip"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={deletingId === id}
+                          onClick={() => handleDelete(id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

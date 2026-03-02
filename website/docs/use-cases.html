@@ -205,7 +205,7 @@
         <!-- ─────────────────────────────────────────────── -->
         <h2 id="skills">4. Custom Skills for Repeatable Workflows</h2>
 
-        <p>Skills are reusable scripts (Python, JavaScript, Bash, or Rust) that the assistant can invoke by name via <code>execute_skill</code>. Each skill is defined by a <code>SKILL.md</code> manifest (YAML frontmatter + usage docs) and a script file. Build a skill manually or let the built-in <code>skill-creator-agent</code> write it for you — it handles code, dependency files, testing, guard validation, and registration.</p>
+        <p>Skills are reusable scripts (Python, JavaScript, Bash, or Rust) that the assistant can invoke by name via <code>execute_skill</code>. Each skill is defined by a <code>SKILL.md</code> manifest (YAML frontmatter + usage docs) and a script file. The orchestrator creates skills directly — writing code, dependency files, testing, running guard validation, and registering — no delegation needed.</p>
 
         <h3>What It Does</h3>
         <ul>
@@ -227,19 +227,17 @@
           </div>
           <pre><span class="fn">You:</span>       <span class="str">Create a skill that converts Markdown to PDF.</span>
 
-<span class="fn">ScalyClaw:</span> <span class="str">Delegating to the skill creator agent.</span>
+<span class="fn">ScalyClaw:</span> <span class="str">Creating the skill now.</span>
 
-<span class="cmt">→ submit_job: { toolName: "delegate_agent",
-    payload: { agentId: "skill-creator-agent", task: "Create a skill that converts Markdown to PDF" } }
-  → writes skills/markdown-to-pdf/SKILL.md (frontmatter: name, description, script, language)
-  → writes skills/markdown-to-pdf/scripts/main.py (uses weasyprint)
-  → writes skills/markdown-to-pdf/requirements.txt
-  → submit_job: execute_skill (test run with sample input)
+<span class="cmt">→ file_write: skills/markdown-to-pdf-skill/SKILL.md (frontmatter: name, description, script, language)
+→ file_write: skills/markdown-to-pdf-skill/scripts/main.py (uses weasyprint)
+→ file_write: skills/markdown-to-pdf-skill/requirements.txt
+→ register_skill: { id: "markdown-to-pdf-skill" }
   → runs skill guard → passed (no malicious patterns)
-  → register_skill: markdown-to-pdf
-  → send_message: "markdown-to-pdf skill is ready"</span>
+→ submit_job: { toolName: "execute_skill", payload: { skillId: "markdown-to-pdf-skill", input: "..." } }
+  → test run with sample input → passed</span>
 
-<span class="fn">ScalyClaw:</span> <span class="str">Done — markdown-to-pdf skill is registered and tested.</span>
+<span class="fn">ScalyClaw:</span> <span class="str">Done — markdown-to-pdf-skill is registered and tested.</span>
 
 <span class="fn">You:</span>       <span class="str">Convert workspace/report.md to PDF and send it to me.</span>
 
@@ -399,7 +397,7 @@
         <ul>
           <li>Each agent has: <code>id</code> (must end with <code>-agent</code>), <code>name</code>, <code>description</code>, <code>systemPrompt</code>, <code>maxIterations</code>, <code>models</code> (with weight/priority), <code>skills</code>, <code>tools</code>, <code>mcpServers</code></li>
           <li>Agents can access operational tools only: <code>send_message</code>, <code>send_file</code>, memory tools, <code>vault_store</code>, <code>vault_list</code>, file tools (<code>file_read</code>, <code>file_write</code>, <code>file_edit</code>, <code>file_ops</code>, <code>list_directory</code>), <code>execute_code</code>, <code>execute_command</code>, <code>execute_skill</code>, <code>register_skill</code> — but cannot delegate to other agents or schedule tasks</li>
-          <li>The built-in <code>skill-creator-agent</code> creates full skills from a description — writes code, installs deps, tests, runs guard, registers</li>
+          <li>The orchestrator creates skills directly — writes code, installs deps, tests, runs guard, registers — no delegation needed</li>
           <li>Agent Guard validates every new agent's system prompt for injection attacks, excessive permissions, and hidden instructions</li>
           <li>Hot-reloaded via Redis pub/sub (<code>scalyclaw:agents:reload</code>) — manage with <code>/agents</code>, <code>/guards</code> or the dashboard Agents page</li>
         </ul>
@@ -478,13 +476,13 @@
 
 <span class="fn">You:</span>       <span class="str">Create a skill that fetches weather for a given city.</span>
 
-<span class="fn">ScalyClaw:</span> <span class="str">Delegating to the skill creator.</span>
+<span class="fn">ScalyClaw:</span> <span class="str">Creating the weather skill now.</span>
 
-<span class="cmt">→ submit_job: { toolName: "delegate_agent",
-    payload: { agentId: "skill-creator-agent", task: "Create a weather skill" } }
-  → vault_list → confirms OPENWEATHERMAP_API_KEY exists
-  → writes weather-skill using os.environ["OPENWEATHERMAP_API_KEY"]
-  → register_skill: weather-skill</span>
+<span class="cmt">→ vault_list → confirms OPENWEATHERMAP_API_KEY exists
+→ file_write: skills/weather-skill/SKILL.md
+→ file_write: skills/weather-skill/scripts/main.py (uses os.environ["OPENWEATHERMAP_API_KEY"])
+→ register_skill: { id: "weather-skill" }
+→ submit_job: execute_skill → test passed</span>
 
 <span class="fn">You:</span>       <span class="str">What's the weather in Paris?</span>
 
@@ -766,11 +764,11 @@
 
 <span class="cmt">— Malicious skill blocked by Skill Guard —</span>
 
-<span class="cmt">→ delegate_agent: skill-creator-agent (user asked for a skill)
-  → agent writes code that exfiltrates env vars via HTTP POST
-  → register_skill → skill guard runs LLM analysis
+<span class="cmt">→ file_write: skills/data-export-skill/scripts/main.py (user asked for a skill)
+  → code attempts to exfiltrate env vars via HTTP POST
+→ register_skill → skill guard runs LLM analysis
   → GuardResult: { passed: false, reason: "Data exfiltration via HTTP POST" }
-  → registration blocked, agent reports failure</span>
+  → registration blocked, skill directory deleted</span>
 
 <span class="fn">ScalyClaw:</span> <span class="str">The skill was rejected by the security guard — it attempted to</span>
            <span class="str">send environment variables to an external server.</span>

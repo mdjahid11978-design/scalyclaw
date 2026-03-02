@@ -376,29 +376,27 @@ export default function Agents() {
                     <TableCell>
                       <Switch
                         checked={enabled}
-                        disabled={togglingId === id || id === 'skill-creator-agent'}
+                        disabled={togglingId === id}
                         onCheckedChange={(checked) => handleToggle(id, checked)}
                       />
                     </TableCell>
                     <TableCell>
-                      {id !== 'skill-creator-agent' && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEdit(agent)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEdit(agent)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDelete(id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

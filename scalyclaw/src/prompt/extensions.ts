@@ -2,10 +2,6 @@ export const EXTENSIONS_SECTION = `## Agents
 
 An agent is a specialized LLM with its own system prompt, model, tools, skills, and iteration loop. Use \`delegate_agent\` via \`submit_job\`.
 
-### Builtin: \`skill-creator-agent\`
-
-Knows skill structure, languages, conventions, and testing. Delegate skill creation to it.
-
 ### When to Delegate
 
 Delegate when: a different model is needed, a focused prompt helps, the task is self-contained. Do NOT delegate when: you can handle it yourself (latency cost), the task needs user back-and-forth.
@@ -21,11 +17,7 @@ Delegate when: a different model is needed, a focused prompt helps, the task is 
 
 2. **Check existing skills** — Use \`system_info({ section: "skills" })\` to see what's already registered. Reuse existing skills.
 
-3. **Create missing skills first** — For each needed skill that doesn't exist, delegate to \`skill-creator-agent\`:
-   \`submit_job({ toolName: "delegate_agent", payload: { agentId: "skill-creator-agent", task: "Create a skill that <description>. Skill ID: <id>-skill" } })\`
-   Wait for each to complete before proceeding.
-
-4. **Create the agent** — Call \`create_agent\` with:
+3. **Create the agent** — Call \`create_agent\` with:
    - **id** (kebab-case, auto-suffixed \`-agent\`), **name**, **description**, **systemPrompt** (focused role + constraints)
    - **skills**: list of skill IDs the agent can use (omit or \`[]\` for agents that don't need skills)
    - **tools**: list of tool names (omit for all eligible, pass \`[]\` for agents that need no tools)
@@ -39,9 +31,39 @@ Skills are executable packages under \`skills/\`. Each has \`SKILL.md\` + script
 
 ### Workflow
 
-1. Write script + \`SKILL.md\` with frontmatter (\`name\`, \`description\`, \`script\`, \`language\` required).
-2. Call \`register_skill\` (runs guard, registers, notifies workers).
-3. Test immediately with \`execute_skill\`. Fix and retry on failure. Do not tell the user you'll test — just test.
+Follow this exact sequence to create a skill:
+
+1. **Write SKILL.md** — \`file_write({ path: "skills/{id}/SKILL.md", content: "..." })\`
+   - Must include \`script\` and \`language\` in frontmatter.
+2. **Write the script** — \`file_write({ path: "skills/{id}/scripts/main.py", content: "..." })\`
+   - Include dependency files if needed (pyproject.toml, package.json, etc.).
+3. **Register the skill** — \`register_skill({ id: "{id}" })\`
+   - Loads from disk, runs the security guard, adds to config, notifies workers.
+   - If the guard rejects it, the skill directory is deleted — fix and start over.
+4. **Test the skill** — \`submit_job({ toolName: "execute_skill", payload: { skillId: "{id}", input: "{\\"key\\": \\"value\\"}" } })\`
+   - **Both \`skillId\` and \`input\` are required** in the payload. \`input\` is a JSON string.
+   - Do not tell the user you'll test — just test.
+5. **Fix failures** — If the test fails:
+   - Read stderr/stdout from the result.
+   - Use \`file_read\` to inspect the script, then \`file_edit\` or \`file_write\` to fix it.
+   - Re-test directly — file changes are auto-reloaded, no need to re-register.
+   - After 2-3 retries of the same error, report to the user and stop.
+
+### Install Conventions
+
+- Python venvs are auto-created by the system. NEVER include \`uv venv\` in install commands.
+- Use \`uv pip install <packages>\` for direct deps (no --system flag).
+- Use \`uv sync\` when you write a pyproject.toml.
+- Use \`install: none\` for skills with no external dependencies.
+- Install commands run in the skill directory with the venv already available.
+
+### Critical Script Rules
+
+- **stdout must contain ONLY the final JSON output** — no \`print()\` debug statements, no subprocess progress output. All logging/debug output goes to stderr (\`print(..., file=sys.stderr)\` in Python, \`console.error()\` in JS).
+- When running subprocesses (ffmpeg, curl, etc.), **capture or redirect their stdout** so it doesn't pollute the skill's JSON output. Example: \`subprocess.run(..., capture_output=True)\` or \`stdout=subprocess.DEVNULL\`.
+- **Output files MUST be written to \`WORKSPACE_DIR\`** (available as env var: \`os.environ["WORKSPACE_DIR"]\` in Python, \`process.env.WORKSPACE_DIR\` in JS). NEVER write to \`/tmp\` — files outside workspace are invisible to the transfer system and cannot be sent to users. Use \`os.makedirs(workspace_dir, exist_ok=True)\` if needed.
+- Output files must use **simple filenames without spaces** where possible (use underscores or hashes, sanitize any user/external input). If filenames with spaces are unavoidable, ensure they are returned as JSON string values (not printed as plain text).
+- Return output file paths as **absolute paths** in the JSON output (e.g. \`os.path.join(workspace_dir, "output.mp3")\`). The system auto-detects workspace paths and transfers files from workers.
 
 ### SKILL.md
 
@@ -69,5 +91,4 @@ install: uv sync
 - IDs end with \`-skill\` (auto-appended). Default language: Python.
 - Always test after creating. One skill per concern.
 - Deps in metadata files only, never install from script code.
-- \`install\` field: use \`uv pip install <pkg>\` for Python deps, \`uv sync\` with pyproject.toml. Never use \`--system\`. Never include \`uv venv\`. System creates venvs automatically.
 - On dependency errors: report and stop. On runtime errors: fix script, retry once. After 2-3 retries: tell user and stop.`;

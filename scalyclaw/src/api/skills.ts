@@ -64,8 +64,6 @@ export function registerSkillsRoutes(server: FastifyInstance): void {
 
       const { enabled } = request.body ?? {};
       if (typeof enabled !== 'boolean') return reply.status(400).send({ error: 'enabled (boolean) is required' });
-      if (id === 'skill-creator-agent' && !enabled) return reply.status(400).send({ error: 'Cannot disable the built-in skill-creator-agent' });
-
       const config = getConfig();
       const entry = config.skills.find(s => s.id === id);
       if (entry) {

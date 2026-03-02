@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { log } from '@scalyclaw/shared/core/logger.js';
 import { PATHS } from '../core/paths.js';
 import { getConfig, getConfigRef, saveConfig } from '../core/config.js';
-import { SKILL_CREATOR_PROMPT } from '../prompt/skill-creator.js';
 import { AGENT_ELIGIBLE_TOOL_NAMES } from '../tools/tools.js';
 
 export interface AgentDefinition {
@@ -25,28 +24,7 @@ const loadedAgents = new Map<string, AgentDefinition>();
 export async function loadAllAgents(): Promise<Map<string, AgentDefinition>> {
   loadedAgents.clear();
 
-  // Load builtin skill-creator-agent
-  const config = getConfigRef();
-  const defaultModel = config.orchestrator.models[0] ?? config.models.models.find(m => m.enabled);
-  const modelEntry = defaultModel
-    ? [{ model: 'model' in defaultModel ? (defaultModel as { model: string }).model : (defaultModel as { id: string }).id, weight: 1, priority: 1 }]
-    : config.orchestrator.models;
-
-  loadedAgents.set('skill-creator-agent', {
-    id: 'skill-creator-agent',
-    name: 'Skill Creator',
-    description: 'Builtin agent that creates new skills. Knows skill structure, languages, conventions, and testing workflow.',
-    enabled: true,
-    maxIterations: 25,
-    models: modelEntry,
-    skills: null,
-    tools: [...AGENT_ELIGIBLE_TOOL_NAMES],
-    mcpServers: [],
-    systemPrompt: SKILL_CREATOR_PROMPT,
-  });
-  log('info', 'Loaded builtin agent: skill-creator-agent');
-
-  // Load user-created agents from the agents directory
+  // Load agents from the agents directory
   try {
     const entries = await readdir(PATHS.agents, { withFileTypes: true });
     for (const entry of entries) {
