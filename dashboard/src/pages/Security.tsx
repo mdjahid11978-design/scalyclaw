@@ -245,7 +245,7 @@ export default function Security() {
                       onCheckedChange={(v) => config.update((c) => { c.message.echoGuard.enabled = v; })}
                     />
                   </div>
-                  <Field label="Similarity Threshold" description="Minimum similarity score (0-1) for the echo test to pass. Default: 0.9">
+                  <Field label="Similarity Threshold" description="Minimum similarity score (0-1) for the echo test to pass. Default: 0.7">
                     <Input
                       type="number"
                       step="0.05"
