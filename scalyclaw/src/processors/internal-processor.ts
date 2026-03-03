@@ -220,6 +220,7 @@ async function processTask(job: Job<TaskData>): Promise<void> {
       channelId: targetChannel,
       text: taggedTask,
       sendToChannel: async () => {},
+      isolatedMessages: [{ role: 'user', content: taggedTask }],
     });
 
     if (result.length > 0) {
@@ -292,6 +293,7 @@ async function processRecurrentTask(job: Job<RecurrentTaskData>): Promise<void> 
       channelId: targetChannel,
       text: taggedTask,
       sendToChannel: async () => {},
+      isolatedMessages: [{ role: 'user', content: taggedTask }],
     });
 
     if (result.length > 0) {

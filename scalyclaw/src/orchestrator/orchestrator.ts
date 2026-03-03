@@ -12,7 +12,7 @@ import { buildSystemPrompt } from '../prompt/builder.js';
 import { recordUsage } from '../core/db.js';
 import { getProvider } from '../models/registry.js';
 import { searchMemory } from '../memory/memory.js';
-import { initContext, calibrate, ensureBudget, truncateToolResult } from './context.js';
+import { initContext, buildBudget, calibrate, ensureBudget, truncateToolResult } from './context.js';
 
 export type StopReason = 'continue' | 'cancelled' | 'budget';
 
@@ -26,7 +26,12 @@ export interface OrchestratorInput {
   shouldStop?: () => Promise<StopReason>;
   /** AbortSignal for cancellation */
   signal?: AbortSignal;
+  /** When provided, skip initContext and use these messages instead (task mode). */
+  isolatedMessages?: ChatMessage[];
 }
+
+const TASK_MODE_PROMPT = `\n\n## Scheduled Task Mode
+You are executing a scheduled task. Focus exclusively on completing the task described in the user message. Do not reference or respond to any prior conversations. Execute the required tools and provide a concise result. If the task requires specific tools, call them — do not simulate or hallucinate results.`;
 
 export async function runOrchestrator(input: OrchestratorInput): Promise<string> {
   const config = getConfigRef();
@@ -66,6 +71,10 @@ export async function runOrchestrator(input: OrchestratorInput): Promise<string>
     log('debug', 'Auto-recall injected memories', { count: memories.length, topScore: memories[0].score });
   }
 
+  if (input.isolatedMessages) {
+    systemPrompt += TASK_MODE_PROMPT;
+  }
+
   // Select model (need contextWindow for initContext)
   const modelId = selectModel(config.orchestrator.models)
     ?? selectModel(config.models.models.filter(m => m.enabled).map(m => ({ model: m.id, weight: m.weight, priority: m.priority })));
@@ -80,14 +89,26 @@ export async function runOrchestrator(input: OrchestratorInput): Promise<string>
   const mcpTools = getMcpTools();
   const allTools = mcpTools.length > 0 ? [...ASSISTANT_TOOLS, ...mcpTools] : ASSISTANT_TOOLS;
 
-  // Load channel-scoped messages + build context budget
-  const { messages, budget } = initContext({
-    channelId: input.channelId,
-    systemPrompt,
-    tools: allTools,
-    contextWindow: modelConfig?.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
-  });
-  log('debug', 'Loaded conversation history', { channelId: input.channelId, messageCount: messages.length });
+  // Load context: isolated for tasks, full history for normal messages
+  let messages: ChatMessage[];
+  let budget;
+  const contextWindow = modelConfig?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+
+  if (input.isolatedMessages) {
+    messages = [...input.isolatedMessages];
+    budget = buildBudget(systemPrompt, allTools, contextWindow, messages);
+    log('debug', 'Using isolated context (task mode)', { channelId: input.channelId, messageCount: messages.length });
+  } else {
+    const ctx = initContext({
+      channelId: input.channelId,
+      systemPrompt,
+      tools: allTools,
+      contextWindow,
+    });
+    messages = ctx.messages;
+    budget = ctx.budget;
+    log('debug', 'Loaded conversation history', { channelId: input.channelId, messageCount: messages.length });
+  }
 
   const toolCtx: ToolContext = {
     channelId: input.channelId,
