@@ -111,10 +111,10 @@ export function AddModelDialog({ open, onClose, onAdd, existingProviders }: AddM
 
   const handleAdd = () => {
     if (!canAdd) return;
-    const id = modelName;
+    const id = modelName.includes(':') ? modelName : `${providerKey}:${modelName}`;
     const model: ModelEntry = {
       id,
-      name: modelName,
+      name: id,
       provider: providerKey,
       temperature,
       maxTokens,
@@ -234,7 +234,7 @@ export function AddModelDialog({ open, onClose, onAdd, existingProviders }: AddM
                 <Input
                   value={customModel}
                   onChange={(e) => { setCustomModel(e.target.value); if (provider!.chatModels.length === 0) setSelectedModel('__custom__'); }}
-                  placeholder="Enter model name"
+                  placeholder={`e.g. ${providerKey !== 'custom' ? `my-model or ${providerKey}:my-model` : 'provider:model-name'}`}
                   className="mt-1.5"
                 />
               )}
@@ -373,10 +373,10 @@ export function AddEmbeddingModelDialog({ open, onClose, onAdd, existingProvider
 
   const handleAdd = () => {
     if (!canAdd) return;
-    const id = modelName;
+    const id = modelName.includes(':') ? modelName : `${providerKey}:${modelName}`;
     const model: EmbeddingModelEntry = {
       id,
-      name: modelName,
+      name: id,
       provider: providerKey,
       dimensions,
       priority,
@@ -488,7 +488,7 @@ export function AddEmbeddingModelDialog({ open, onClose, onAdd, existingProvider
                 <Input
                   value={customModel}
                   onChange={(e) => { setCustomModel(e.target.value); if (provider!.embeddingModels.length === 0) setSelectedModel('__custom__'); }}
-                  placeholder="Enter embedding model name"
+                  placeholder={`e.g. ${providerKey !== 'custom' ? `my-model or ${providerKey}:my-model` : 'provider:model-name'}`}
                   className="mt-1.5"
                 />
               )}
