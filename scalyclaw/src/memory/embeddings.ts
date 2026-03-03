@@ -65,6 +65,8 @@ export async function initEmbeddings(): Promise<void> {
           const result = await client.embeddings.create({
             model,
             input: text,
+            // Force float format — local servers (LM Studio, Ollama) often don't support base64
+            encoding_format: 'float',
           });
           return result.data[0].embedding;
         },

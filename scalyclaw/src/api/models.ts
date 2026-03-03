@@ -92,7 +92,7 @@ export function registerModelsRoutes(server: FastifyInstance): void {
             apiKey: providerConfig.apiKey || 'lm-studio',
             baseURL: providerConfig.baseUrl || (providerName === 'lmstudio' ? 'http://localhost:1234/v1' : undefined),
           });
-          const result = await client.embeddings.create({ model: modelName, input: testText });
+          const result = await client.embeddings.create({ model: modelName, input: testText, encoding_format: 'float' });
           dimensions = result.data[0].embedding.length;
           break;
         }
