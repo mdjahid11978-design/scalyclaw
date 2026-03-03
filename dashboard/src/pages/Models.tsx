@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, Pencil } from 'lucide-react';
-import { getModels, testModel, toggleModel } from '@/lib/api';
+import { getModels, testModel, testEmbeddingModel, toggleModel } from '@/lib/api';
 import { useApi } from '@/hooks/use-api';
 import { useConfigSection } from '@/hooks/use-config-section';
 import { PROVIDERS } from '@/lib/providers';
@@ -147,6 +147,26 @@ export default function Models() {
       }
     } catch (err) {
       toast.error('Failed to test model', {
+        description: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setTestingId(null);
+    }
+  }
+
+  async function handleTestEmbedding(id: string) {
+    setTestingId(id);
+    try {
+      const result = await testEmbeddingModel(id);
+      if (result.ok) {
+        toast.success(`Embedding model "${id}" responded (${result.dimensions} dims)`);
+      } else {
+        toast.error(`Embedding model "${id}" test failed`, {
+          description: result.error,
+        });
+      }
+    } catch (err) {
+      toast.error('Failed to test embedding model', {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -322,7 +342,7 @@ export default function Models() {
                       <TableHead>Input $/M</TableHead>
                       <TableHead>Output $/M</TableHead>
                       <TableHead>Enabled</TableHead>
-                      <TableHead className="w-[120px]" />
+                      <TableHead className="w-[160px]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -366,6 +386,15 @@ export default function Models() {
                                 disabled={config.loading}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 ml-1"
+                                disabled={testingId === id}
+                                onClick={() => handleTestEmbedding(id)}
+                              >
+                                {testingId === id ? 'Testing...' : 'Test'}
                               </Button>
                             </div>
                           </TableCell>

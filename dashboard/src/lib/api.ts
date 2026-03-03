@@ -59,6 +59,8 @@ export const updateConfig = (config: Record<string, unknown>) =>
 export const getModels = () => request<{ providers: string[]; models: Array<Record<string, unknown>>; embeddingModels: Array<Record<string, unknown>> }>('/api/models');
 export const testModel = (id: string) =>
   request<{ model: string; provider: string; ok: boolean; error?: string }>(`/api/models/test`, { method: 'POST', body: JSON.stringify({ model: id }) });
+export const testEmbeddingModel = (id: string) =>
+  request<{ model: string; provider: string; ok: boolean; dimensions?: number; error?: string }>(`/api/models/test-embedding`, { method: 'POST', body: JSON.stringify({ model: id }) });
 export const toggleModel = (id: string, enabled: boolean) =>
   request<{ enabled: boolean }>(`/api/models/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ enabled }) });
 
