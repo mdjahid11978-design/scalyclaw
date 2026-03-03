@@ -103,6 +103,7 @@ export async function runOrchestrator(input: OrchestratorInput): Promise<string>
   let round = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
+  const sentProgress = new Set<string>();
 
   while (round < maxIterations) {
     // Check abort before each round
@@ -192,9 +193,14 @@ export async function runOrchestrator(input: OrchestratorInput): Promise<string>
       tool_calls: response.toolCalls,
     });
 
-    // Send intermediate progress message before executing tools
-    const progressLines = response.toolCalls.map(tc => describeToolCall(tc.name, tc.input));
-    input.sendToChannel(input.channelId, progressLines.join('\n')).catch(() => {});
+    // Send intermediate progress message before executing tools (skip already-sent lines)
+    const newLines = response.toolCalls
+      .map(tc => describeToolCall(tc.name, tc.input))
+      .filter(line => !sentProgress.has(line));
+    if (newLines.length > 0) {
+      for (const line of newLines) sentProgress.add(line);
+      input.sendToChannel(input.channelId, newLines.join('\n')).catch(() => {});
+    }
 
     const toolResults = await Promise.all(
       response.toolCalls.map(async (tc) => {
