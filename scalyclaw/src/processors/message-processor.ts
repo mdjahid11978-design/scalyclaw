@@ -7,7 +7,9 @@ import { enqueueJob } from '@scalyclaw/shared/queue/queue.js';
 import { runOrchestrator, type StopReason } from '../orchestrator/orchestrator.js';
 import { runMessageGuard, runResponseEchoGuard } from '../guards/guard.js';
 import type { MessageProcessingData, CommandData, AttachmentData } from '@scalyclaw/shared/queue/jobs.js';
-import { recordChannelActivity } from '../scheduler/proactive.js';
+import { ACTIVITY_KEY_PREFIX } from '../const/constants.js';
+import { SEVEN_DAYS_S } from '@scalyclaw/shared/const/constants.js';
+import { onUserMessage } from '../proactive/engine.js';
 import { startTypingLoop, stopTypingLoop } from '../channels/manager.js';
 import { registerAbort, unregisterAbort } from '@scalyclaw/shared/queue/cancel-signal.js';
 import { CANCEL_FLAG_KEY } from '../const/constants.js';
@@ -160,7 +162,10 @@ async function processMessageJob(job: Job<MessageProcessingData>): Promise<void>
 
   log('info', 'Processing message job', { jobId: job.id, channelId, textLength: fullText.length, attachments: attachments?.length ?? 0 });
 
-  await recordChannelActivity(channelId).catch(() => {});
+  // Record channel activity in Redis + proactive engagement hook
+  await getRedis().set(`${ACTIVITY_KEY_PREFIX}${channelId}`, String(Date.now()), 'EX', SEVEN_DAYS_S).catch(() => {});
+  onUserMessage(channelId, fullText);
+
   startTypingLoop(channelId);
   try {
     await runOrchestratorPipeline(channelId, fullText, job.id!);

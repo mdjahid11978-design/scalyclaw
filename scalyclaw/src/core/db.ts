@@ -167,6 +167,52 @@ function runMigrations(db: Database, dimensions: number): void {
     db.exec(`CREATE VIRTUAL TABLE memory_fts USING fts5(id UNINDEXED, subject, content, tags, type UNINDEXED);`);
   }
 
+  // ─── Proactive engagement schema ───
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS proactive_events (
+      id              TEXT PRIMARY KEY,
+      trigger_type    TEXT NOT NULL,
+      signal_types    TEXT NOT NULL,
+      message         TEXT NOT NULL,
+      channel         TEXT NOT NULL,
+      outcome         TEXT DEFAULT 'pending',
+      user_responded  INTEGER DEFAULT 0,
+      response_time_s INTEGER,
+      sentiment       TEXT,
+      created_at      TEXT DEFAULT (datetime('now')),
+      resolved_at     TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_proactive_events_created ON proactive_events(created_at);
+    CREATE INDEX IF NOT EXISTS idx_proactive_events_outcome ON proactive_events(outcome);
+
+    CREATE TABLE IF NOT EXISTS proactive_profile (
+      id                  INTEGER PRIMARY KEY CHECK (id = 1),
+      engagement_score    REAL DEFAULT 0.5,
+      activity_pattern    TEXT,
+      avg_response_time_s REAL,
+      total_sent          INTEGER DEFAULT 0,
+      total_engaged       INTEGER DEFAULT 0,
+      total_dismissed     INTEGER DEFAULT 0,
+      last_proactive_at   TEXT,
+      last_user_msg_at    TEXT,
+      muted_until         TEXT,
+      style_preference    TEXT DEFAULT 'balanced',
+      updated_at          TEXT DEFAULT (datetime('now'))
+    );
+    INSERT OR IGNORE INTO proactive_profile (id) VALUES (1);
+
+    CREATE TABLE IF NOT EXISTS proactive_topics (
+      id                TEXT PRIMARY KEY,
+      topic             TEXT NOT NULL,
+      status            TEXT DEFAULT 'open',
+      context           TEXT,
+      last_mentioned_at TEXT DEFAULT (datetime('now')),
+      created_at        TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_proactive_topics_status ON proactive_topics(status);
+  `);
+
   log('info', 'Database migrations complete');
 }
 

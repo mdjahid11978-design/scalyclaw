@@ -262,14 +262,61 @@ export const getBudget = () => request<BudgetResponse>('/api/budget');
 export interface EngagementStatus {
   enabled: boolean;
   recentMessageCount: number;
-  channels: Record<string, { onCooldown: boolean; dailyCount: number }>;
+  dailyCount: number;
+  maxPerDay: number;
+  cooldowns: Record<string, boolean>;
+  profile: {
+    engagementScore: number;
+    totalSent: number;
+    totalEngaged: number;
+    totalDismissed: number;
+    stylePreference: string;
+    lastProactiveAt: string | null;
+    lastUserMsgAt: string | null;
+    mutedUntil: string | null;
+  };
 }
 export interface EngagementTriggerResponse {
   triggered: number;
-  skipped: number;
-  results: Array<{ channelId: string; triggerType: string; messagePreview: string }>;
+  message?: string;
+  result?: { channelId: string; triggerType: string; messagePreview: string };
+}
+export interface EngagementProfile {
+  engagementScore: number;
+  activityPattern: number[];
+  avgResponseTimeS: number | null;
+  totalSent: number;
+  totalEngaged: number;
+  totalDismissed: number;
+  lastProactiveAt: string | null;
+  lastUserMsgAt: string | null;
+  mutedUntil: string | null;
+  stylePreference: string;
+  updatedAt: string;
+}
+export interface EngagementEvent {
+  id: string;
+  triggerType: string;
+  signalTypes: string[];
+  message: string;
+  channel: string;
+  outcome: string;
+  userResponded: boolean;
+  responseTimeS: number | null;
+  sentiment: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
 }
 export const getEngagementStatus = () => request<EngagementStatus>('/api/proactive/status');
+export const getEngagementProfile = () => request<EngagementProfile>('/api/proactive/profile');
+export const updateEngagementProfile = (data: { stylePreference?: string }) =>
+  request<EngagementProfile>('/api/proactive/profile', { method: 'PATCH', body: JSON.stringify(data) });
+export const muteEngagement = (minutes?: number) =>
+  request<{ muted: boolean; until: string }>('/api/proactive/mute', { method: 'POST', body: JSON.stringify({ minutes }) });
+export const unmuteEngagement = () =>
+  request<{ muted: boolean }>('/api/proactive/unmute', { method: 'POST' });
+export const getEngagementHistory = (limit = 20) =>
+  request<EngagementEvent[]>(`/api/proactive/history?limit=${limit}`);
 export const triggerEngagement = () =>
   request<EngagementTriggerResponse>('/api/proactive/trigger', { method: 'POST' });
 

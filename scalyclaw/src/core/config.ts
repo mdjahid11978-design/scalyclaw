@@ -142,15 +142,48 @@ export interface ScalyClawConfig {
   proactive: {
     enabled: boolean;
     model: string;
-    cronPattern: string;
-    idleThresholdMinutes: number;
-    cooldownSeconds: number;
-    maxPerDay: number;
+    monitorCronPattern: string;
+
+    signals: {
+      idleThresholdMinutes: number;
+      idleMaxDays: number;
+      topicExpiryHours: number;
+      timeSensitiveLeadMinutes: number;
+      returnFromAbsenceHours: number;
+    };
+
+    engagement: {
+      baseThreshold: number;
+      responseWindowMinutes: number;
+      adaptiveRange: { min: number; max: number };
+    };
+
+    rateLimits: {
+      cooldownSeconds: {
+        urgent: number;
+        deliverable: number;
+        follow_up: number;
+        insight: number;
+        check_in: number;
+      };
+      maxPerDay: number;
+      maxUrgentPerDay: number;
+    };
+
     quietHours: {
       enabled: boolean;
       start: number;
       end: number;
       timezone: string;
+      urgentOverride: boolean;
+    };
+
+    triggerWeights: {
+      urgent: number;
+      deliverable: number;
+      follow_up: number;
+      insight: number;
+      check_in: number;
     };
   };
   channels: Record<string, Record<string, unknown>>;
@@ -197,11 +230,43 @@ export const CONFIG_DEFAULTS: ScalyClawConfig = {
   proactive: {
     enabled: true,
     model: '',
-    cronPattern: '*/15 * * * *',
-    idleThresholdMinutes: 120,
-    cooldownSeconds: 14400,
-    maxPerDay: 3,
-    quietHours: { enabled: true, start: 22, end: 8, timezone: 'UTC' },
+    monitorCronPattern: '*/5 * * * *',
+
+    signals: {
+      idleThresholdMinutes: 120,
+      idleMaxDays: 7,
+      topicExpiryHours: 72,
+      timeSensitiveLeadMinutes: 60,
+      returnFromAbsenceHours: 24,
+    },
+
+    engagement: {
+      baseThreshold: 0.6,
+      responseWindowMinutes: 60,
+      adaptiveRange: { min: 0.3, max: 0.9 },
+    },
+
+    rateLimits: {
+      cooldownSeconds: {
+        urgent: 1800,
+        deliverable: 7200,
+        follow_up: 14400,
+        insight: 28800,
+        check_in: 43200,
+      },
+      maxPerDay: 5,
+      maxUrgentPerDay: 10,
+    },
+
+    quietHours: { enabled: true, start: 22, end: 8, timezone: 'UTC', urgentOverride: true },
+
+    triggerWeights: {
+      urgent: 1.0,
+      deliverable: 0.9,
+      follow_up: 0.7,
+      insight: 0.5,
+      check_in: 0.3,
+    },
   },
   guards: {
     message: {
@@ -356,10 +421,15 @@ export function validateConfig(config: unknown): asserts config is ScalyClawConf
     if (!isPlainObject(c.proactive)) throw new ConfigError('"proactive" must be an object');
     const p = c.proactive as Record<string, unknown>;
     if (typeof p.enabled !== 'boolean') throw new ConfigError('proactive.enabled must be a boolean');
-    if (typeof p.cronPattern !== 'string') throw new ConfigError('proactive.cronPattern must be a string');
-    if (typeof p.idleThresholdMinutes !== 'number' || p.idleThresholdMinutes < 1) throw new ConfigError('proactive.idleThresholdMinutes must be a positive number');
-    if (typeof p.cooldownSeconds !== 'number' || p.cooldownSeconds < 0) throw new ConfigError('proactive.cooldownSeconds must be a non-negative number');
-    if (typeof p.maxPerDay !== 'number' || p.maxPerDay < 1) throw new ConfigError('proactive.maxPerDay must be a positive number');
+    if (typeof p.monitorCronPattern !== 'string') throw new ConfigError('proactive.monitorCronPattern must be a string');
+    if (isPlainObject(p.signals)) {
+      const s = p.signals as Record<string, unknown>;
+      if (typeof s.idleThresholdMinutes !== 'number' || s.idleThresholdMinutes < 1) throw new ConfigError('proactive.signals.idleThresholdMinutes must be a positive number');
+    }
+    if (isPlainObject(p.rateLimits)) {
+      const r = p.rateLimits as Record<string, unknown>;
+      if (typeof r.maxPerDay !== 'number' || r.maxPerDay < 1) throw new ConfigError('proactive.rateLimits.maxPerDay must be a positive number');
+    }
   }
 }
 

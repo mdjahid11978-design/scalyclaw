@@ -7,10 +7,10 @@ import { enqueueJob } from '@scalyclaw/shared/queue/queue.js';
 import { extractMemories } from '../memory/extractor.js';
 import { startTypingLoop, stopTypingLoop } from '../channels/manager.js';
 import { isScheduledJobActive, markScheduledCompleted, markScheduledFailed, updateScheduledNextRun } from '../scheduler/scheduler.js';
-import { processProactiveEngagement } from '../scheduler/proactive.js';
+import { runSignalScan, runDeepEvaluation } from '../proactive/engine.js';
 import type {
   ReminderData, RecurrentReminderData, TaskData, RecurrentTaskData,
-  MemoryExtractionData, ProactiveCheckData, VaultKeyRotationData,
+  MemoryExtractionData, ProactiveCheckData, ProactiveEvalData, VaultKeyRotationData,
 } from '@scalyclaw/shared/queue/jobs.js';
 import { runConsolidation } from '../memory/consolidation.js';
 
@@ -96,6 +96,9 @@ export async function processInternalJob(job: Job): Promise<void> {
       break;
     case 'proactive-check':
       await processProactiveCheck(job as Job<ProactiveCheckData>);
+      break;
+    case 'proactive-eval':
+      await processProactiveEval(job as Job<ProactiveEvalData>);
       break;
     case 'memory-consolidation':
       await processMemoryConsolidation();
@@ -336,32 +339,30 @@ async function processRecurrentTask(job: Job<RecurrentTaskData>): Promise<void> 
   }
 }
 
-// ─── Proactive Check (direct delivery — no double-hop) ───
+// ─── Proactive Check (signal scan — no LLM) ───
 
 async function processProactiveCheck(job: Job<ProactiveCheckData>): Promise<void> {
-  log('debug', 'Running proactive engagement check', { jobId: job.id });
+  log('debug', 'Running proactive signal scan', { jobId: job.id });
+  await runSignalScan();
+  log('debug', 'Proactive signal scan done', { jobId: job.id });
+}
 
-  const results = await processProactiveEngagement();
-  const redis = getRedis();
+// ─── Proactive Eval (deep evaluation — uses LLM) ───
 
-  for (const result of results) {
-    try {
-      storeMessage(result.channelId, 'assistant', result.message, { source: 'proactive' });
-      await publishProgress(redis, result.channelId, {
-        jobId: job.id!,
-        type: 'complete',
-        result: result.message,
-      });
-      log('info', 'Proactive message delivered', { channelId: result.channelId });
-    } catch (err) {
-      log('error', 'Failed to deliver proactive message', {
-        channelId: result.channelId,
-        error: String(err),
-      });
-    }
+async function processProactiveEval(job: Job<ProactiveEvalData>): Promise<void> {
+  log('debug', 'Running proactive deep evaluation', { jobId: job.id });
+
+  const result = await runDeepEvaluation(job.data.signals as any);
+  if (result) {
+    const redis = getRedis();
+    await publishProgress(redis, result.channelId, {
+      jobId: job.id!,
+      type: 'complete',
+      result: result.message,
+    });
   }
 
-  log('debug', 'Proactive engagement check done', { jobId: job.id, sent: results.length });
+  log('debug', 'Proactive deep evaluation done', { jobId: job.id, sent: result ? 1 : 0 });
 }
 
 // ─── Memory Consolidation ───

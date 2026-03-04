@@ -12,8 +12,9 @@ export const SCHEDULED_KEY_PREFIX = 'scalyclaw:scheduled:';
 export const CANCEL_FLAG_KEY = 'scalyclaw:cancel';
 export const UPDATE_NOTIFY_KEY = 'scalyclaw:update:notify';
 export const UPDATE_AWAITING_KEY_PREFIX = 'scalyclaw:update:awaiting:';
-export const PROACTIVE_COOLDOWN_KEY_PREFIX = 'proactive:cooldown:';
-export const PROACTIVE_DAILY_KEY_PREFIX = 'proactive:daily:';
+export const PROACTIVE_COOLDOWN_KEY_PREFIX = 'scalyclaw:proactive:cooldown:';
+export const PROACTIVE_DAILY_KEY = 'scalyclaw:proactive:daily';
+export const PROACTIVE_SIGNALS_KEY = 'scalyclaw:proactive:signals';
 
 // ─── Progress Pub/Sub ───
 
@@ -105,8 +106,6 @@ export const TOOL_RESULT_BUDGET_FRACTION = 0.25;
 /** Number of recent messages to load from DB for context. */
 export const DEFAULT_MESSAGE_LIMIT = 50;
 
-/** Number of recent messages to load for proactive engagement context. */
-export const PROACTIVE_MESSAGE_LIMIT = 10;
 
 // ─── Reliability ───
 

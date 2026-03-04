@@ -483,14 +483,16 @@ export async function registerProactiveCheck(): Promise<void> {
     return;
   }
 
+  const cronPattern = proactive.monitorCronPattern;
+
   await enqueueJob({
     name: 'proactive-check',
     data: { type: 'idle-engagement' },
     opts: {
-      repeat: { pattern: proactive.cronPattern },
+      repeat: { pattern: cronPattern },
       jobId: 'proactive-check',
     },
   });
 
-  log('info', 'Proactive check cron registered', { pattern: proactive.cronPattern });
+  log('info', 'Proactive check cron registered', { pattern: cronPattern });
 }

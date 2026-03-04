@@ -38,6 +38,10 @@ export interface ProactiveCheckData {
   type: 'idle-engagement';
 }
 
+export interface ProactiveEvalData {
+  signals: Array<{ type: string; strength: number; metadata: Record<string, unknown> }>;
+}
+
 export interface SkillExecutionData {
   skillId: string;
   input: string;
@@ -90,6 +94,7 @@ export type JobData =
   | TaskData
   | RecurrentTaskData
   | ProactiveCheckData
+  | ProactiveEvalData
   | SkillExecutionData
   | MessageProcessingData
   | CommandData
@@ -105,6 +110,7 @@ export type JobName =
   | 'tool-execution'
   | 'skill-execution'
   | 'proactive-check'
+  | 'proactive-eval'
   | 'reminder'
   | 'recurrent-reminder'
   | 'task'
@@ -122,6 +128,7 @@ export const JOB_QUEUE_MAP: Record<JobName, QueueName> = {
   'tool-execution':     'scalyclaw-tools',
   'skill-execution':    'scalyclaw-tools',
   'proactive-check':    'scalyclaw-internal',
+  'proactive-eval':     'scalyclaw-internal',
   'reminder':           'scalyclaw-internal',
   'recurrent-reminder': 'scalyclaw-internal',
   'task':               'scalyclaw-internal',

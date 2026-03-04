@@ -1,12 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { getConfigRef } from '../core/config.js';
-import { getRedis } from '@scalyclaw/shared/core/redis.js';
 import { getDb } from '../core/db.js';
-import { processProactiveEngagement } from '../scheduler/proactive.js';
-import { storeMessage } from '../core/db.js';
-import { sendToChannel } from '../channels/manager.js';
 import { log } from '@scalyclaw/shared/core/logger.js';
-import { PROACTIVE_COOLDOWN_KEY_PREFIX, PROACTIVE_DAILY_KEY_PREFIX } from '../const/constants.js';
+import { getRedis } from '@scalyclaw/shared/core/redis.js';
+import { PROACTIVE_COOLDOWN_KEY_PREFIX, PROACTIVE_DAILY_KEY } from '../const/constants.js';
+import { runDeepEvaluation } from '../proactive/engine.js';
+import { detectAllSignals } from '../proactive/signals.js';
+import { getProfile, updateProfile, getRecentEvents } from '../proactive/tracker.js';
+import type { StylePreference } from '../proactive/types.js';
 
 export function registerProactiveRoutes(server: FastifyInstance): void {
   // GET /api/proactive/status
@@ -22,53 +23,99 @@ export function registerProactiveRoutes(server: FastifyInstance): void {
          AND created_at > datetime('now', '-1 day')`
     ).get() as { count: number };
 
-    // Get per-channel cooldown status
-    const channels = db.prepare(
-      `SELECT DISTINCT channel FROM messages`
-    ).all() as Array<{ channel: string }>;
+    // Daily counter
+    const dailyCount = await redis.get(PROACTIVE_DAILY_KEY);
 
-    const cooldowns: Record<string, { onCooldown: boolean; dailyCount: number }> = {};
-    for (const ch of channels) {
-      const cooldownKey = `${PROACTIVE_COOLDOWN_KEY_PREFIX}${ch.channel}`;
-      const dailyKey = `${PROACTIVE_DAILY_KEY_PREFIX}${ch.channel}`;
-      const hasCooldown = await redis.exists(cooldownKey);
-      const dailyCount = await redis.get(dailyKey);
-      cooldowns[ch.channel] = {
-        onCooldown: hasCooldown === 1,
-        dailyCount: dailyCount ? Number(dailyCount) : 0,
-      };
+    // Engagement profile
+    const profile = getProfile();
+
+    // Cooldown status per trigger type
+    const triggerTypes = ['urgent', 'deliverable', 'follow_up', 'insight', 'check_in'] as const;
+    const cooldowns: Record<string, boolean> = {};
+    for (const t of triggerTypes) {
+      cooldowns[t] = (await redis.exists(`${PROACTIVE_COOLDOWN_KEY_PREFIX}${t}`)) === 1;
     }
 
     return {
       enabled: config.proactive.enabled,
       recentMessageCount: recentMessages.count,
-      channels: cooldowns,
+      dailyCount: dailyCount ? Number(dailyCount) : 0,
+      maxPerDay: config.proactive.rateLimits.maxPerDay,
+      cooldowns,
+      profile: {
+        engagementScore: profile.engagementScore,
+        totalSent: profile.totalSent,
+        totalEngaged: profile.totalEngaged,
+        totalDismissed: profile.totalDismissed,
+        stylePreference: profile.stylePreference,
+        lastProactiveAt: profile.lastProactiveAt,
+        lastUserMsgAt: profile.lastUserMsgAt,
+        mutedUntil: profile.mutedUntil,
+      },
     };
+  });
+
+  // GET /api/proactive/profile
+  server.get('/api/proactive/profile', async () => {
+    return getProfile();
+  });
+
+  // PATCH /api/proactive/profile
+  server.patch<{ Body: { stylePreference?: string } }>('/api/proactive/profile', async (req) => {
+    const { stylePreference } = req.body ?? {};
+    if (stylePreference && ['minimal', 'balanced', 'proactive'].includes(stylePreference)) {
+      updateProfile({ stylePreference: stylePreference as StylePreference });
+    }
+    return getProfile();
+  });
+
+  // POST /api/proactive/mute
+  server.post<{ Body: { minutes?: number } }>('/api/proactive/mute', async (req) => {
+    const minutes = req.body?.minutes ?? 60;
+    const until = new Date(Date.now() + minutes * 60_000).toISOString();
+    updateProfile({ mutedUntil: until });
+    return { muted: true, until };
+  });
+
+  // POST /api/proactive/unmute
+  server.post('/api/proactive/unmute', async () => {
+    updateProfile({ mutedUntil: null });
+    return { muted: false };
+  });
+
+  // GET /api/proactive/history
+  server.get<{ Querystring: { limit?: string } }>('/api/proactive/history', async (req) => {
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    return getRecentEvents(limit);
   });
 
   // POST /api/proactive/trigger
   server.post('/api/proactive/trigger', async () => {
-    const results = await processProactiveEngagement();
+    const config = getConfigRef();
 
-    const delivered: typeof results = [];
-
-    for (const result of results) {
-      storeMessage(result.channelId, 'assistant', result.message, {
-        source: 'proactive',
-      });
-      await sendToChannel(result.channelId, result.message);
-      delivered.push(result);
-      log('info', 'Proactive message sent (manual trigger)', {
-        channelId: result.channelId,
-      });
+    // Detect signals and run deep evaluation
+    const signals = await detectAllSignals(config.proactive);
+    if (signals.length === 0) {
+      return { triggered: 0, message: 'No signals detected' };
     }
 
+    const result = await runDeepEvaluation(signals);
+    if (!result) {
+      return { triggered: 0, message: 'Evaluation decided not to engage' };
+    }
+
+    log('info', 'Proactive message sent (manual trigger)', {
+      channelId: result.channelId,
+      triggerType: result.triggerType,
+    });
+
     return {
-      triggered: delivered.length,
-      results: delivered.map(r => ({
-        channelId: r.channelId,
-        messagePreview: r.message.substring(0, 100),
-      })),
+      triggered: 1,
+      result: {
+        channelId: result.channelId,
+        triggerType: result.triggerType,
+        messagePreview: result.message.substring(0, 100),
+      },
     };
   });
 }
