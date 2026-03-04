@@ -6,19 +6,43 @@ Do NOT extract: greetings, small talk, questions about your capabilities, transi
 
 Return a JSON array. Each entry:
 {
-  "type": "fact" | "conversation" | "analysis" | "research",
+  "type": "episodic" | "semantic" | "procedural",
   "subject": "short label (e.g., 'User name', 'Preferred language')",
   "content": "the fact in a complete sentence",
   "tags": ["relevant", "tags"],
-  "source": "conversation",
-  "confidence": 1-3 (1=uncertain, 2=likely, 3=stated explicitly)
+  "source": "user-stated" | "inferred" | "observed",
+  "importance": 1-10,
+  "entities": [
+    {
+      "name": "entity name",
+      "type": "person" | "project" | "technology" | "place" | "organization" | "concept",
+      "relations": [
+        { "relation": "relationship description", "target": "target entity name" }
+      ]
+    }
+  ]
 }
 
 Type mapping guide:
-- Personal info, preferences, decisions, opinions, goals, people → "fact"
-- Notable conversation outcomes, action items → "conversation"
-- Data insights, comparisons → "analysis"
-- Gathered information, sources → "research"
+- Events, interactions, what happened → "episodic"
+- Facts, knowledge, personal info, preferences, decisions, opinions, people → "semantic"
+- Patterns, workflows, how-to, routines, processes → "procedural"
+
+Importance scale:
+- 1-3: Trivial (minor preferences, passing mentions)
+- 4-6: Useful (project details, tools used, general preferences)
+- 7-9: Important (core identity, key decisions, strong preferences, critical context)
+- 10: Critical (fundamental facts that should never be forgotten)
+
+Source guide:
+- "user-stated": The user explicitly stated this fact
+- "inferred": You deduced this from context (e.g., they use TypeScript based on code they shared)
+- "observed": Derived from tool/task outcomes or system observations
+
+Entity extraction guide:
+- Extract people, projects, technologies, places, organizations, and concepts
+- Include relationships between entities (e.g., "works on", "uses", "located in", "manages")
+- Only extract clearly identifiable entities, not generic terms
 
 Return [] if nothing is worth storing.
 

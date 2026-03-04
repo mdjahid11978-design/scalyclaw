@@ -4,7 +4,20 @@ import { getConfigRef } from '../core/config.js';
 import { selectModel, parseModelId } from '../models/provider.js';
 import { getProvider } from '../models/registry.js';
 import { storeMemory, searchMemory } from './memory.js';
+import { processExtractedEntities, type ExtractedEntity } from './entities.js';
 import { EXTRACTION_PROMPT } from '../prompt/extractor.js';
+
+// Map legacy types to new 3-tier model
+const TYPE_MAP: Record<string, string> = {
+  fact: 'semantic',
+  conversation: 'episodic',
+  analysis: 'semantic',
+  research: 'semantic',
+};
+
+function normalizeType(type: string): string {
+  return TYPE_MAP[type] ?? type;
+}
 
 export async function extractMemories(userMessages: string[], channelId?: string): Promise<void> {
   // Skip trivial messages
@@ -65,7 +78,8 @@ export async function extractMemories(userMessages: string[], channelId?: string
       content: string;
       tags?: string[];
       source?: string;
-      confidence?: number;
+      importance?: number;
+      entities?: ExtractedEntity[];
     }>;
 
     if (!Array.isArray(facts) || facts.length === 0) {
@@ -80,20 +94,30 @@ export async function extractMemories(userMessages: string[], channelId?: string
     for (const fact of facts) {
       if (!fact.type || !fact.subject || !fact.content) continue;
       try {
-        // Dedup: search for very similar existing memories before storing (same logic as handleMemoryStore)
+        // Dedup: search for very similar existing memories before storing
         try {
-          const existing = await searchMemory(fact.subject + ' ' + fact.content, { topK: 3, type: fact.type });
+          const existing = await searchMemory(fact.subject + ' ' + fact.content, { topK: 3, type: normalizeType(fact.type) });
           if (existing.find(r => r.score >= 0.92)) continue; // skip duplicate
         } catch { /* proceed if search fails */ }
 
-        await storeMemory({
-          type: fact.type,
+        const memoryId = await storeMemory({
+          type: normalizeType(fact.type),
           subject: fact.subject,
           content: fact.content,
           tags: fact.tags ?? [],
           source: fact.source ?? 'auto-extraction',
-          confidence: fact.confidence ?? 2,
+          importance: fact.importance ?? 5,
         });
+
+        // Process entities (sync, non-blocking for each memory)
+        if (fact.entities?.length) {
+          try {
+            processExtractedEntities(fact.entities, memoryId);
+          } catch (err) {
+            log('debug', 'Entity extraction failed for memory', { memoryId, error: String(err) });
+          }
+        }
+
         stored++;
       } catch (err) {
         log('warn', 'Failed to store extracted memory', { subject: fact.subject, error: String(err) });

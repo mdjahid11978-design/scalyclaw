@@ -12,6 +12,7 @@ import type {
   ReminderData, RecurrentReminderData, TaskData, RecurrentTaskData,
   MemoryExtractionData, ProactiveCheckData, VaultKeyRotationData,
 } from '@scalyclaw/shared/queue/jobs.js';
+import { runConsolidation } from '../memory/consolidation.js';
 
 import { randomUUID } from 'node:crypto';
 import { TASK_LOCK_TTL_S, TASK_LOCK_HEARTBEAT_MS } from '../const/constants.js';
@@ -95,6 +96,9 @@ export async function processInternalJob(job: Job): Promise<void> {
       break;
     case 'proactive-check':
       await processProactiveCheck(job as Job<ProactiveCheckData>);
+      break;
+    case 'memory-consolidation':
+      await processMemoryConsolidation();
       break;
     default:
       log('warn', `Unknown internal job type: ${job.name}`, { jobId: job.id });
@@ -358,4 +362,53 @@ async function processProactiveCheck(job: Job<ProactiveCheckData>): Promise<void
   }
 
   log('debug', 'Proactive engagement check done', { jobId: job.id, sent: results.length });
+}
+
+// ─── Memory Consolidation ───
+
+async function processMemoryConsolidation(): Promise<void> {
+  log('info', 'Running scheduled memory consolidation');
+  try {
+    const result = await runConsolidation();
+    log('info', 'Scheduled memory consolidation complete', {
+      consolidated: result.consolidated,
+      clusters: result.clusters,
+      newMemories: result.newMemoryIds.length,
+    });
+  } catch (err) {
+    log('error', 'Scheduled memory consolidation failed', { error: String(err) });
+    throw err;
+  }
+}
+
+// ─── Consolidation Schedule ───
+
+export async function registerConsolidationSchedule(): Promise<void> {
+  try {
+    const { getConfigRef } = await import('../core/config.js');
+    const config = getConfigRef();
+    const memConfig = config.memory as Record<string, unknown>;
+    const consolConfig = (memConfig.consolidation as Record<string, unknown> | undefined) ?? {};
+    const enabled = (consolConfig.enabled as boolean | undefined) ?? true;
+    const schedule = (consolConfig.schedule as string | undefined) ?? '0 3 * * *';
+
+    if (!enabled) {
+      log('info', 'Memory consolidation schedule disabled');
+      return;
+    }
+
+    await enqueueJob({
+      name: 'memory-consolidation' as any,
+      data: { trigger: 'scheduled' } as any,
+      opts: {
+        repeat: { pattern: schedule },
+        jobId: 'memory-consolidation-schedule',
+        attempts: 1,
+      },
+    });
+
+    log('info', 'Memory consolidation schedule registered', { schedule });
+  } catch (err) {
+    log('warn', 'Failed to register consolidation schedule', { error: String(err) });
+  }
 }

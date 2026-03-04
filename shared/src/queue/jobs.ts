@@ -79,6 +79,10 @@ export interface VaultKeyRotationData {
   trigger: 'scheduled';
 }
 
+export interface MemoryConsolidationData {
+  trigger: 'scheduled' | 'manual';
+}
+
 export type JobData =
   | AgentTaskData
   | ReminderData
@@ -91,7 +95,8 @@ export type JobData =
   | CommandData
   | ToolExecutionData
   | MemoryExtractionData
-  | VaultKeyRotationData;
+  | VaultKeyRotationData
+  | MemoryConsolidationData;
 
 export type JobName =
   | 'message-processing'
@@ -105,7 +110,8 @@ export type JobName =
   | 'task'
   | 'recurrent-task'
   | 'memory-extraction'
-  | 'vault-key-rotation';
+  | 'vault-key-rotation'
+  | 'memory-consolidation';
 
 // ─── Job → Queue Routing ───
 
@@ -120,8 +126,9 @@ export const JOB_QUEUE_MAP: Record<JobName, QueueName> = {
   'recurrent-reminder': 'scalyclaw-internal',
   'task':               'scalyclaw-internal',
   'recurrent-task':     'scalyclaw-internal',
-  'memory-extraction':  'scalyclaw-internal',
-  'vault-key-rotation': 'scalyclaw-internal',
+  'memory-extraction':     'scalyclaw-internal',
+  'vault-key-rotation':    'scalyclaw-internal',
+  'memory-consolidation':  'scalyclaw-internal',
 };
 
 // ─── Job Spec ───

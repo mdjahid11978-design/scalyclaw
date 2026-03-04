@@ -16,16 +16,16 @@ export function registerMemoryRoutes(server: FastifyInstance): void {
       content: string;
       tags?: string[];
       source?: string;
-      confidence?: number;
+      importance?: number;
       ttl?: string;
     };
   }>('/api/memory', async (request, reply) => {
-    const { type, subject, content, tags, source, confidence, ttl } = request.body ?? {};
+    const { type, subject, content, tags, source, importance, ttl } = request.body ?? {};
     if (!type || !subject || !content) {
       return reply.status(400).send({ error: 'type, subject, and content are required' });
     }
 
-    const id = await storeMemory({ type, subject, content, tags, source, confidence, ttl });
+    const id = await storeMemory({ type, subject, content, tags, source, importance, ttl });
     return { id };
   });
 
@@ -36,7 +36,7 @@ export function registerMemoryRoutes(server: FastifyInstance): void {
       subject?: string;
       content?: string;
       tags?: string[];
-      confidence?: number;
+      importance?: number;
     };
   }>('/api/memory/:id', async (request, reply) => {
     const updated = await updateMemory(request.params.id, request.body ?? {});

@@ -12,6 +12,7 @@ import { buildSystemPrompt } from '../prompt/builder.js';
 import { recordUsage } from '../core/db.js';
 import { getProvider } from '../models/registry.js';
 import { searchMemory } from '../memory/memory.js';
+import { getTopEntities } from '../memory/entities.js';
 import { initContext, buildBudget, calibrate, ensureBudget, truncateToolResult } from './context.js';
 
 export type StopReason = 'continue' | 'cancelled' | 'budget';
@@ -55,7 +56,7 @@ export async function runOrchestrator(input: OrchestratorInput): Promise<string>
   const [systemPromptBase, memories] = await Promise.all([
     buildSystemPrompt(),
     input.text.length >= 10
-      ? searchMemory(input.text, { topK: 5 }).catch(err => {
+      ? searchMemory(input.text, { topK: 7 }).catch(err => {
           log('warn', 'Auto-recall failed — continuing without memories', { error: String(err) });
           return [] as Awaited<ReturnType<typeof searchMemory>>;
         })
@@ -65,10 +66,24 @@ export async function runOrchestrator(input: OrchestratorInput): Promise<string>
   let systemPrompt = systemPromptBase;
   if (memories.length > 0) {
     const memorySection = memories
-      .map(m => `- **${m.subject}**: ${m.content}`)
+      .map(m => `- [${m.type}] **${m.subject}** (importance: ${m.importance}): ${m.content}`)
       .join('\n');
     systemPrompt += `\n\n## Relevant Memories\n${memorySection}`;
     log('debug', 'Auto-recall injected memories', { count: memories.length, topScore: memories[0].score });
+  }
+
+  // Inject entity context
+  try {
+    const topEntities = getTopEntities(5);
+    if (topEntities.length > 0) {
+      const entityLines = topEntities.map(e => {
+        const rels = e.relations.map(r => `${r.relation} ${r.target}`).join(', ');
+        return `- **${e.name}** (${e.type}${rels ? ': ' + rels : ''})`;
+      });
+      systemPrompt += `\n\n## Known Entities\n${entityLines.join('\n')}`;
+    }
+  } catch {
+    // Entity context is optional — don't fail if it errors
   }
 
   if (input.isolatedMessages) {
@@ -328,6 +343,8 @@ function describeDirectTool(name: string, input: Record<string, unknown>): strin
     case 'memory_recall':   return '🧠 Recalling memories…';
     case 'memory_update':   return `💾 Updating memory "${d('subject')}"…`;
     case 'memory_delete':   return '🗑️ Removing a memory…';
+    case 'memory_reflect':  return '🔄 Reflecting on memories…';
+    case 'memory_graph':    return `🕸️ Querying knowledge graph for "${d('entity')}"…`;
     // Messaging
     case 'send_message':    return `💬 Sending a message to ${d('channelId') || 'channel'}…`;
     case 'send_file':       return `📎 Sending ${d('filePath') || 'a file'}…`;

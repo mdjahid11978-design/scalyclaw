@@ -38,14 +38,28 @@ interface MemoryConfig {
   topK: number;
   scoreThreshold: number;
   embeddingModel: string;
+  weights: { semantic: number; recency: number; importance: number };
+  decayRate: number;
+  consolidation: {
+    enabled: boolean;
+    schedule: string;
+    similarityThreshold: number;
+    maxClusterSize: number;
+  };
 }
 
-const CONFIDENCE_LABELS: Record<number, string> = { 1: 'Low', 2: 'Normal', 3: 'High' };
-const CONFIDENCE_COLORS: Record<number, string> = {
-  1: 'bg-yellow-500',
-  2: 'bg-blue-500',
-  3: 'bg-emerald-500',
+const TYPE_COLORS: Record<string, string> = {
+  episodic: 'bg-purple-500/10 text-purple-600 border-purple-200',
+  semantic: 'bg-blue-500/10 text-blue-600 border-blue-200',
+  procedural: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
 };
+
+function importanceBadge(importance: number) {
+  if (importance >= 8) return { color: 'bg-red-500', label: 'Critical' };
+  if (importance >= 6) return { color: 'bg-orange-500', label: 'Important' };
+  if (importance >= 4) return { color: 'bg-blue-500', label: 'Useful' };
+  return { color: 'bg-gray-400', label: 'Trivial' };
+}
 
 export default function Memory() {
   const { data: recentData, loading: recentLoading, refetch: refetchRecent } = useApi(listMemory);
@@ -55,11 +69,11 @@ export default function Memory() {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   const [storeOpen, setStoreOpen] = useState(false);
-  const [storeType, setStoreType] = useState('fact');
+  const [storeType, setStoreType] = useState('semantic');
   const [storeSubject, setStoreSubject] = useState('');
   const [storeContent, setStoreContent] = useState('');
   const [storeTags, setStoreTags] = useState('');
-  const [storeConfidence, setStoreConfidence] = useState('2');
+  const [storeImportance, setStoreImportance] = useState('5');
   const [storing, setStoring] = useState(false);
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -102,15 +116,15 @@ export default function Memory() {
         subject: storeSubject.trim(),
         content: storeContent.trim(),
         tags: tags.length ? tags : undefined,
-        confidence: Number(storeConfidence),
+        importance: Number(storeImportance),
       });
       toast.success('Memory stored successfully');
       setStoreOpen(false);
-      setStoreType('fact');
+      setStoreType('semantic');
       setStoreSubject('');
       setStoreContent('');
       setStoreTags('');
-      setStoreConfidence('2');
+      setStoreImportance('5');
       if (searchResults !== null && query.trim()) {
         const res = await searchMemory(query.trim());
         setSearchResults(res.results);
@@ -201,7 +215,7 @@ export default function Memory() {
                   <TableHead>Subject</TableHead>
                   <TableHead className="w-[100px]">Type</TableHead>
                   <TableHead>Tags</TableHead>
-                  <TableHead className="w-[80px]">Confidence</TableHead>
+                  <TableHead className="w-[100px]">Importance</TableHead>
                   <TableHead className="w-[150px]">Updated</TableHead>
                   <TableHead className="w-[80px]" />
                 </TableRow>
@@ -212,9 +226,14 @@ export default function Memory() {
                   const subject = entry.subject as string | undefined;
                   const type = entry.type as string | undefined;
                   const content = entry.content as string | undefined;
-                  const confidence = (entry.confidence as number) ?? 2;
+                  const importance = (entry.importance as number) ?? 5;
+                  const accessCount = (entry.access_count as number) ?? 0;
+                  const source = entry.source as string | undefined;
+                  const score = entry.score as number | undefined;
+                  const consolidatedInto = entry.consolidated_into as string | undefined;
                   const updatedAt = (entry.updated_at ?? entry.created_at) as string | undefined;
                   const isExpanded = expandedId === id;
+                  const imp = importanceBadge(importance);
 
                   // Tags can be comma-separated string or array
                   const rawTags = entry.tags;
@@ -227,7 +246,7 @@ export default function Memory() {
                   return (
                     <Fragment key={id}>
                       <TableRow
-                        className="cursor-pointer"
+                        className={`cursor-pointer ${consolidatedInto ? 'opacity-50' : ''}`}
                         onClick={() => setExpandedId(isExpanded ? null : id)}
                       >
                         <TableCell className="px-2">
@@ -239,7 +258,11 @@ export default function Memory() {
                           {subject ?? '-'}
                         </TableCell>
                         <TableCell>
-                          {type ? <Badge variant="secondary">{type}</Badge> : '-'}
+                          {type ? (
+                            <Badge variant="outline" className={TYPE_COLORS[type] ?? ''}>
+                              {type}
+                            </Badge>
+                          ) : '-'}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
@@ -252,8 +275,8 @@ export default function Memory() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
-                            <span className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_COLORS[confidence] ?? CONFIDENCE_COLORS[2]}`} />
-                            <span className="text-xs text-muted-foreground">{CONFIDENCE_LABELS[confidence] ?? 'Normal'}</span>
+                            <span className={`inline-block h-2 w-2 rounded-full ${imp.color}`} />
+                            <span className="text-xs text-muted-foreground">{importance}/10</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -276,8 +299,16 @@ export default function Memory() {
                         <TableRow key={`${id}-expanded`}>
                           <TableCell />
                           <TableCell colSpan={6}>
-                            <div className="py-2 text-sm whitespace-pre-wrap text-muted-foreground">
-                              {content ?? 'No content'}
+                            <div className="space-y-2 py-2">
+                              <div className="text-sm whitespace-pre-wrap text-muted-foreground">
+                                {content ?? 'No content'}
+                              </div>
+                              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                {source && <span>Source: <strong>{source}</strong></span>}
+                                {accessCount > 0 && <span>Accessed: <strong>{accessCount}x</strong></span>}
+                                {score !== undefined && <span>Score: <strong>{score.toFixed(3)}</strong></span>}
+                                {consolidatedInto && <span>Consolidated into: <code className="text-xs">{consolidatedInto}</code></span>}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -306,25 +337,34 @@ export default function Memory() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fact">Fact</SelectItem>
-                    <SelectItem value="conversation">Conversation</SelectItem>
-                    <SelectItem value="analysis">Analysis</SelectItem>
-                    <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="episodic">Episodic</SelectItem>
+                    <SelectItem value="semantic">Semantic</SelectItem>
+                    <SelectItem value="procedural">Procedural</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  {storeType === 'episodic' && 'Events, interactions, what happened'}
+                  {storeType === 'semantic' && 'Facts, knowledge, personal info'}
+                  {storeType === 'procedural' && 'Patterns, workflows, routines'}
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="memory-confidence">Confidence</Label>
-                <Select value={storeConfidence} onValueChange={setStoreConfidence}>
-                  <SelectTrigger id="memory-confidence">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Low (inferred)</SelectItem>
-                    <SelectItem value="2">Normal</SelectItem>
-                    <SelectItem value="3">High (user-stated)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="memory-importance">Importance ({storeImportance}/10)</Label>
+                <Input
+                  id="memory-importance"
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={storeImportance}
+                  onChange={(e) => setStoreImportance(e.target.value)}
+                  className="cursor-pointer"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {Number(storeImportance) <= 3 && 'Trivial — minor details'}
+                  {Number(storeImportance) >= 4 && Number(storeImportance) <= 6 && 'Useful — project details, preferences'}
+                  {Number(storeImportance) >= 7 && Number(storeImportance) <= 9 && 'Important — key decisions, core context'}
+                  {Number(storeImportance) === 10 && 'Critical — never forget'}
+                </p>
               </div>
             </div>
             <div className="space-y-2">
@@ -370,7 +410,7 @@ export default function Memory() {
 
       {/* Settings dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
               Memory Settings
@@ -380,44 +420,142 @@ export default function Memory() {
           {config.loading ? (
             <p className="text-sm text-muted-foreground">Loading...</p>
           ) : config.section ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Embedding Model" description="Model used for memory embeddings">
-                <Select
-                  value={config.section.embeddingModel || 'auto'}
-                  onValueChange={(v) => config.update((c) => { c.embeddingModel = v; })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Auto</SelectItem>
-                    {(modelsData?.embeddingModels ?? [])
-                      .filter((m) => m.enabled)
-                      .map((m) => (
-                        <SelectItem key={m.id as string} value={m.id as string}>
-                          {(m.name as string) || (m.id as string)}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Top K" description="Number of results to return">
-                <Input
-                  type="number"
-                  value={String(config.section.topK)}
-                  onChange={(e) => config.update((c) => { c.topK = Number(e.target.value); })}
-                />
-              </Field>
-              <Field label="Score Threshold" description="Minimum similarity score (0-1)">
-                <Input
-                  type="number"
-                  step="0.05"
-                  min="0"
-                  max="1"
-                  value={String(config.section.scoreThreshold)}
-                  onChange={(e) => config.update((c) => { c.scoreThreshold = Number(e.target.value); })}
-                />
-              </Field>
+            <div className="space-y-6">
+              {/* General */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Embedding Model" description="Model used for memory embeddings">
+                  <Select
+                    value={config.section.embeddingModel || 'auto'}
+                    onValueChange={(v) => config.update((c) => { c.embeddingModel = v; })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto</SelectItem>
+                      {(modelsData?.embeddingModels ?? [])
+                        .filter((m) => m.enabled)
+                        .map((m) => (
+                          <SelectItem key={m.id as string} value={m.id as string}>
+                            {(m.name as string) || (m.id as string)}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Top K" description="Number of results to return">
+                  <Input
+                    type="number"
+                    value={String(config.section.topK)}
+                    onChange={(e) => config.update((c) => { c.topK = Number(e.target.value); })}
+                  />
+                </Field>
+                <Field label="Score Threshold" description="Minimum similarity score (0-1)">
+                  <Input
+                    type="number"
+                    step="0.05"
+                    min="0"
+                    max="1"
+                    value={String(config.section.scoreThreshold)}
+                    onChange={(e) => config.update((c) => { c.scoreThreshold = Number(e.target.value); })}
+                  />
+                </Field>
+                <Field label="Decay Rate" description="Temporal decay factor (higher = faster decay)">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={String(config.section.decayRate)}
+                    onChange={(e) => config.update((c) => { c.decayRate = Number(e.target.value); })}
+                  />
+                </Field>
+              </div>
+
+              {/* Scoring Weights */}
+              <div>
+                <h3 className="text-sm font-medium mb-2">Scoring Weights</h3>
+                <p className="text-xs text-muted-foreground mb-3">Controls how memories are ranked. Should sum to 1.0.</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Semantic" description="">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1"
+                      value={String(config.section.weights?.semantic ?? 0.6)}
+                      onChange={(e) => config.update((c) => { c.weights = { ...c.weights, semantic: Number(e.target.value) }; })}
+                    />
+                  </Field>
+                  <Field label="Recency" description="">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1"
+                      value={String(config.section.weights?.recency ?? 0.2)}
+                      onChange={(e) => config.update((c) => { c.weights = { ...c.weights, recency: Number(e.target.value) }; })}
+                    />
+                  </Field>
+                  <Field label="Importance" description="">
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1"
+                      value={String(config.section.weights?.importance ?? 0.2)}
+                      onChange={(e) => config.update((c) => { c.weights = { ...c.weights, importance: Number(e.target.value) }; })}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Consolidation */}
+              <div>
+                <h3 className="text-sm font-medium mb-2">Consolidation</h3>
+                <p className="text-xs text-muted-foreground mb-3">Merges similar memories into comprehensive summaries.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Enabled" description="Run consolidation on schedule">
+                    <Select
+                      value={String(config.section.consolidation?.enabled ?? true)}
+                      onValueChange={(v) => config.update((c) => { c.consolidation = { ...c.consolidation, enabled: v === 'true' }; })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Enabled</SelectItem>
+                        <SelectItem value="false">Disabled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Schedule" description="Cron pattern">
+                    <Input
+                      value={config.section.consolidation?.schedule ?? '0 3 * * *'}
+                      onChange={(e) => config.update((c) => { c.consolidation = { ...c.consolidation, schedule: e.target.value }; })}
+                    />
+                  </Field>
+                  <Field label="Similarity Threshold" description="Min similarity to cluster (0-1)">
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="0.5"
+                      max="1"
+                      value={String(config.section.consolidation?.similarityThreshold ?? 0.85)}
+                      onChange={(e) => config.update((c) => { c.consolidation = { ...c.consolidation, similarityThreshold: Number(e.target.value) }; })}
+                    />
+                  </Field>
+                  <Field label="Max Cluster Size" description="Max memories per consolidation group">
+                    <Input
+                      type="number"
+                      min="2"
+                      max="10"
+                      value={String(config.section.consolidation?.maxClusterSize ?? 5)}
+                      onChange={(e) => config.update((c) => { c.consolidation = { ...c.consolidation, maxClusterSize: Number(e.target.value) }; })}
+                    />
+                  </Field>
+                </div>
+              </div>
             </div>
           ) : null}
           <DialogFooter>

@@ -19,6 +19,7 @@ import { buildChannelAdapters } from './channels/registry.js';
 import type { NormalizedMessage } from './channels/adapter.js';
 import type { FastifyInstance } from 'fastify';
 import { registerProactiveCheck } from './scheduler/scheduler.js';
+import { registerConsolidationSchedule } from './processors/internal-processor.js';
 import { registerProcess, deregisterProcess, processId } from '@scalyclaw/shared/core/registry.js';
 import { disconnectAll as disconnectMcpServers } from './mcp/mcp-manager.js';
 import type { ScalyClawConfig } from './core/config.js';
@@ -70,6 +71,11 @@ async function startSystem(): Promise<void> {
         await registerVaultKeyRotation();
       } catch (err) {
         log('warn', 'Failed to re-register vault key rotation after config reload', { error: String(err) });
+      }
+      try {
+        await registerConsolidationSchedule();
+      } catch (err) {
+        log('warn', 'Failed to re-register consolidation schedule after config reload', { error: String(err) });
       }
     },
   });
@@ -199,6 +205,12 @@ async function startSystem(): Promise<void> {
     await registerVaultKeyRotation();
   } catch (err) {
     log('warn', 'Failed to register vault key rotation', { error: String(err) });
+  }
+
+  try {
+    await registerConsolidationSchedule();
+  } catch (err) {
+    log('warn', 'Failed to register memory consolidation schedule', { error: String(err) });
   }
 
   // ── Periodic cleanup ──

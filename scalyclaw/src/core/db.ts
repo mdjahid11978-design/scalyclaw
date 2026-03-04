@@ -86,23 +86,27 @@ function runMigrations(db: Database, dimensions: number): void {
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS memories (
-      id          TEXT PRIMARY KEY,
-      type        TEXT NOT NULL,
-      subject     TEXT NOT NULL,
-      content     TEXT NOT NULL,
-      tags        TEXT,
-      source      TEXT,
-      confidence  INTEGER DEFAULT 2,
-      embedding   BLOB,
-      ttl         TEXT,
-      created_at  TEXT DEFAULT (datetime('now')),
-      updated_at  TEXT DEFAULT (datetime('now'))
+      id                TEXT PRIMARY KEY,
+      type              TEXT NOT NULL,
+      subject           TEXT NOT NULL,
+      content           TEXT NOT NULL,
+      tags              TEXT,
+      source            TEXT,
+      importance        INTEGER DEFAULT 5,
+      embedding         BLOB,
+      ttl               TEXT,
+      access_count      INTEGER DEFAULT 0,
+      last_accessed_at  TEXT,
+      consolidated_into TEXT,
+      created_at        TEXT DEFAULT (datetime('now')),
+      updated_at        TEXT DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type);
     CREATE INDEX IF NOT EXISTS idx_memories_ttl ON memories(ttl);
-    CREATE INDEX IF NOT EXISTS idx_memories_confidence ON memories(confidence);
+    CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance);
     CREATE INDEX IF NOT EXISTS idx_memories_updated ON memories(updated_at);
+    CREATE INDEX IF NOT EXISTS idx_memories_consolidated ON memories(consolidated_into);
 
     CREATE TABLE IF NOT EXISTS memory_tags (
       memory_id   TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
@@ -110,6 +114,36 @@ function runMigrations(db: Database, dimensions: number): void {
       PRIMARY KEY (memory_id, tag)
     );
     CREATE INDEX IF NOT EXISTS idx_memory_tags_tag ON memory_tags(tag);
+
+    CREATE TABLE IF NOT EXISTS memory_entities (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      entity_type   TEXT NOT NULL,
+      first_seen    TEXT DEFAULT (datetime('now')),
+      last_seen     TEXT DEFAULT (datetime('now')),
+      mention_count INTEGER DEFAULT 1
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_entities_name ON memory_entities(name);
+    CREATE INDEX IF NOT EXISTS idx_memory_entities_type ON memory_entities(entity_type);
+
+    CREATE TABLE IF NOT EXISTS memory_entity_mentions (
+      entity_id TEXT NOT NULL REFERENCES memory_entities(id) ON DELETE CASCADE,
+      memory_id TEXT NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+      PRIMARY KEY (entity_id, memory_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS memory_relations (
+      id         TEXT PRIMARY KEY,
+      source_id  TEXT NOT NULL REFERENCES memory_entities(id) ON DELETE CASCADE,
+      relation   TEXT NOT NULL,
+      target_id  TEXT NOT NULL REFERENCES memory_entities(id) ON DELETE CASCADE,
+      memory_id  TEXT REFERENCES memories(id) ON DELETE SET NULL,
+      strength   INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_relations_source ON memory_relations(source_id);
+    CREATE INDEX IF NOT EXISTS idx_memory_relations_target ON memory_relations(target_id);
   `);
 
   if (vecAvailable) {

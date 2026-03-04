@@ -40,35 +40,72 @@ const JOB_ONLY_NAMES = [
 // ═══════════════════════════════════════════════════════════════════
 
 const TOOL_DEFS: ToolDefinition[] = [
-  // ─── Memory (5) ───
+  // ─── Memory (7) ───
   tool('memory_store', 'Store a memory', schema({
-    type: STR('Memory type (e.g. fact, preference, event)'),
+    type: ENUM('Memory type', ['episodic', 'semantic', 'procedural']),
     subject: 'Short subject/title',
     content: 'Full content of the memory',
     tags: STRARR('Tags for categorization'),
-    confidence: NUM('Confidence score (0-3, default 2)'),
-    source: ENUM('Source of the memory', ['user-stated', 'inferred']),
+    importance: NUM('Importance score (1-10, default 5)'),
+    source: ENUM('Source of the memory', ['user-stated', 'inferred', 'observed']),
     ttl: STR('Time-to-live (e.g. "7d", "1h")'),
+    entities: {
+      type: 'array',
+      description: 'Entities to extract and link',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          type: { type: 'string', enum: ['person', 'project', 'technology', 'place', 'organization', 'concept'] },
+          relations: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { relation: { type: 'string' }, target: { type: 'string' } },
+              required: ['relation', 'target'],
+            },
+          },
+        },
+        required: ['name', 'type'],
+      },
+    },
   }, ['type', 'subject', 'content'])),
-  tool('memory_search', 'Semantic search over memories', schema({
+  tool('memory_search', 'Semantic search over memories with composite scoring', schema({
     query: 'Search query',
     type: STR('Filter by memory type'),
     tags: STRARR('Filter by tags'),
     topK: NUM('Max results (default 5)'),
+    weights: {
+      type: 'object',
+      description: 'Override scoring weights (semantic, recency, importance — must sum to 1.0)',
+      properties: {
+        semantic: NUM('Weight for semantic similarity (default 0.6)'),
+        recency: NUM('Weight for recency (default 0.2)'),
+        importance: NUM('Weight for importance (default 0.2)'),
+      },
+    },
   }, ['query'])),
   tool('memory_recall', 'Browse memories by ID, type, or tags', schema({
     id: 'Recall a specific memory by ID',
     type: STR('Filter by memory type'),
     tags: STRARR('Filter by tags'),
+    includeConsolidated: BOOL('Include memories that have been consolidated (default false)'),
   })),
   tool('memory_update', 'Update a memory in place', schema({
     id: 'Memory ID to update',
     subject: STR(''),
     content: STR(''),
     tags: STRARR(''),
-    confidence: NUM(''),
+    importance: NUM('Importance score (1-10)'),
   }, ['id'])),
   tool('memory_delete', 'Delete a memory by ID', schema({ id: 'Memory ID to delete' }, ['id'])),
+  tool('memory_reflect', 'Trigger memory consolidation — merges similar memories into comprehensive summaries', schema({
+    force: BOOL('Run even if consolidation is disabled in config'),
+  })),
+  tool('memory_graph', 'Query entity relationships from the knowledge graph', schema({
+    entity: 'Entity name to query',
+    depth: NUM('Graph traversal depth (default 2)'),
+  }, ['entity'])),
 
   // ─── Messaging (2) ───
   tool('send_message', 'Send an intermediate message to a channel', schema({
@@ -191,7 +228,7 @@ const TOOL_DEFS: ToolDefinition[] = [
 /** Tools available to agents as direct calls (operational only — no admin tools) */
 const AGENT_DIRECT_NAMES = new Set([
   'send_message', 'send_file',
-  'memory_store', 'memory_search', 'memory_recall', 'memory_update', 'memory_delete',
+  'memory_store', 'memory_search', 'memory_recall', 'memory_update', 'memory_delete', 'memory_reflect', 'memory_graph',
   'vault_store', 'vault_list',
   'list_directory', 'file_read', 'file_write', 'file_edit', 'file_ops',
   'register_skill',

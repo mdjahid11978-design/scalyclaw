@@ -3,6 +3,8 @@ import { join, dirname, resolve } from 'node:path';
 import { log } from '@scalyclaw/shared/core/logger.js';
 import { storeSecret, resolveSecret, deleteSecret, listSecrets, getAllSecrets } from '../core/vault.js';
 import { storeMemory, searchMemory, recallMemory, deleteMemory, updateMemory } from '../memory/memory.js';
+import { processExtractedEntities, getEntityGraph, type ExtractedEntity } from '../memory/entities.js';
+import { runConsolidation } from '../memory/consolidation.js';
 import { createReminder, createRecurrentReminder, createTask, createRecurrentTask, listReminders, listTasks, cancelReminder, cancelTask, cancelScheduledJobAdmin, deleteScheduledJob } from '../scheduler/scheduler.js';
 import { enqueueJob, getQueue, getQueueEvents, QUEUE_NAMES, removeRepeatableJob, type QueueKey } from '@scalyclaw/shared/queue/queue.js';
 import { EXECUTION_TIMEOUT_MS, PROCESS_KEY_PREFIX } from '@scalyclaw/shared/const/constants.js';
@@ -782,11 +784,11 @@ async function handleMemoryStore(input: Record<string, unknown>, ctx: ToolContex
   const subject = input.subject as string;
   const content = input.content as string;
   const tags = (input.tags as string[] | undefined) ?? [];
-  const confidence = (input.confidence as number | undefined) ?? 2;
+  const importance = (input.importance as number | undefined) ?? 5;
   const ttl = input.ttl as string | undefined;
 
   const rawSource = input.source as string | undefined;
-  const source = rawSource === 'user-stated' || rawSource === 'inferred' ? rawSource : ctx.channelId;
+  const source = rawSource === 'user-stated' || rawSource === 'inferred' || rawSource === 'observed' ? rawSource : ctx.channelId;
 
   log('debug', 'memory_store', { type, subject, contentLength: content?.length, tags, ttl });
 
@@ -802,17 +804,30 @@ async function handleMemoryStore(input: Record<string, unknown>, ctx: ToolContex
     // If search fails, proceed with store anyway
   }
 
-  const id = await storeMemory({ type, subject, content, tags, source, confidence, ttl });
+  const id = await storeMemory({ type, subject, content, tags, source, importance, ttl });
+
+  // Process entities if provided
+  const entities = input.entities as ExtractedEntity[] | undefined;
+  if (entities?.length) {
+    try {
+      processExtractedEntities(entities, id);
+    } catch (err) {
+      log('debug', 'Entity processing failed during memory_store', { id, error: String(err) });
+    }
+  }
+
   log('debug', 'memory_store result', { id });
   return JSON.stringify({ stored: true, id });
 }
 
 async function handleMemorySearch(input: Record<string, unknown>): Promise<string> {
   log('debug', 'memory_search', { query: input.query, type: input.type, tags: input.tags, topK: input.topK });
+  const weights = input.weights as { semantic?: number; recency?: number; importance?: number } | undefined;
   const results = await searchMemory(input.query as string, {
     type: input.type as string | undefined,
     tags: input.tags as string[] | undefined,
     topK: input.topK as number | undefined,
+    weights,
   });
   log('debug', 'memory_search result', { resultCount: results.length });
   return JSON.stringify({ results });
@@ -825,6 +840,7 @@ async function handleMemoryRecall(input: Record<string, unknown>): Promise<strin
     {
       type: input.type as string | undefined,
       tags: input.tags as string[] | undefined,
+      includeConsolidated: input.includeConsolidated as boolean | undefined,
     }
   );
   log('debug', 'memory_recall result', { resultCount: results.length });
@@ -839,12 +855,49 @@ async function handleMemoryUpdate(input: Record<string, unknown>): Promise<strin
   if (input.subject !== undefined) updates.subject = input.subject as string;
   if (input.content !== undefined) updates.content = input.content as string;
   if (input.tags !== undefined) updates.tags = input.tags as string[];
-  if (input.confidence !== undefined) updates.confidence = input.confidence as number;
+  if (input.importance !== undefined) updates.importance = input.importance as number;
 
   const updated = await updateMemory(id, updates);
   log('debug', 'memory_update result', { id, updated });
   if (!updated) return JSON.stringify({ error: 'Memory not found', id });
   return JSON.stringify({ updated: true, id });
+}
+
+async function handleMemoryReflect(input: Record<string, unknown>): Promise<string> {
+  const force = input.force as boolean | undefined;
+  const config = getConfigRef();
+  const memConfig = config.memory as Record<string, unknown>;
+  const consolConfig = (memConfig.consolidation as Record<string, unknown> | undefined) ?? {};
+  const enabled = (consolConfig.enabled as boolean | undefined) ?? true;
+
+  if (!enabled && !force) {
+    return JSON.stringify({ error: 'Consolidation is disabled in config. Use force: true to override.' });
+  }
+
+  log('info', 'Memory consolidation triggered via memory_reflect');
+  const result = await runConsolidation();
+  return JSON.stringify({
+    consolidated: result.consolidated,
+    clusters: result.clusters,
+    newMemoryIds: result.newMemoryIds,
+    message: result.consolidated > 0
+      ? `Consolidated ${result.consolidated} memories into ${result.newMemoryIds.length} summaries.`
+      : 'No similar memories found to consolidate.',
+  });
+}
+
+function handleMemoryGraph(input: Record<string, unknown>): string {
+  const entity = input.entity as string;
+  const depth = (input.depth as number | undefined) ?? 2;
+
+  if (!entity) return JSON.stringify({ error: 'Missing required field: entity' });
+
+  const graph = getEntityGraph(entity, depth);
+  if (graph.length === 0) {
+    return JSON.stringify({ entity, found: false, message: `No entity found matching "${entity}"` });
+  }
+
+  return JSON.stringify({ entity, found: true, graph });
 }
 
 // ─── Messaging ───
@@ -1580,6 +1633,8 @@ registerTool('memory_delete', (input) => JSON.stringify((() => {
   const deleted = deleteMemory(id);
   return { deleted, id };
 })()));
+registerTool('memory_reflect', handleMemoryReflect);
+registerTool('memory_graph', handleMemoryGraph);
 
 // ─── Messaging ───
 registerTool('send_message', handleSendMessage);

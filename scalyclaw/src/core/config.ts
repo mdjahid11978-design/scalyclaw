@@ -65,6 +65,14 @@ export interface ScalyClawConfig {
     topK: number;
     scoreThreshold: number;
     embeddingModel: string;
+    weights: { semantic: number; recency: number; importance: number };
+    decayRate: number;
+    consolidation: {
+      enabled: boolean;
+      schedule: string;
+      similarityThreshold: number;
+      maxClusterSize: number;
+    };
   };
   queue: {
     lockDuration: number;
@@ -164,7 +172,19 @@ export const CONFIG_DEFAULTS: ScalyClawConfig = {
     cors: [],
   },
   logs: { level: ['all'], format: 'json', type: 'console' },
-  memory: { topK: 10, scoreThreshold: 0.5, embeddingModel: 'auto' },
+  memory: {
+    topK: 10,
+    scoreThreshold: 0.5,
+    embeddingModel: 'auto',
+    weights: { semantic: 0.6, recency: 0.2, importance: 0.2 },
+    decayRate: 0.05,
+    consolidation: {
+      enabled: true,
+      schedule: '0 3 * * *',
+      similarityThreshold: 0.85,
+      maxClusterSize: 5,
+    },
+  },
   queue: {
     lockDuration: LOCK_DURATION_MS,
     stalledInterval: STALLED_INTERVAL_MS,

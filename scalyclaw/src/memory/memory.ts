@@ -5,6 +5,8 @@ import { log } from '@scalyclaw/shared/core/logger.js';
 import { withRetry } from '@scalyclaw/shared/core/retry.js';
 import { EMBEDDING_RETRY_ATTEMPTS } from '../const/constants.js';
 import { generateEmbedding, vectorToBlob, isEmbeddingsAvailable } from './embeddings.js';
+import { computeCompositeScore, trackAccessBatch } from './scoring.js';
+import { cleanupEntityReferences } from './entities.js';
 
 const TTL_FILTER = "(ttl IS NULL OR ttl > datetime('now'))";
 
@@ -17,7 +19,10 @@ export interface MemoryEntry {
   content: string;
   tags: string | null;
   source: string | null;
-  confidence: number;
+  importance: number;
+  access_count: number;
+  last_accessed_at: string | null;
+  consolidated_into: string | null;
   ttl: string | null;
   created_at: string;
   updated_at: string;
@@ -30,8 +35,10 @@ export interface MemorySearchResult {
   type: string;
   tags: string[];
   source: string | null;
-  confidence: number;
+  importance: number;
   score: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StoreMemoryInput {
@@ -40,7 +47,7 @@ export interface StoreMemoryInput {
   content: string;
   tags?: string[];
   source?: string;
-  confidence?: number;
+  importance?: number;
   ttl?: string;
 }
 
@@ -48,7 +55,7 @@ export interface UpdateMemoryInput {
   subject?: string;
   content?: string;
   tags?: string[];
-  confidence?: number;
+  importance?: number;
 }
 
 // ─── Tag helpers ───
@@ -68,7 +75,7 @@ export function serializeTags(tags: string[]): string | null {
 export async function storeMemory(input: StoreMemoryInput): Promise<string> {
   const db = getDb();
   const id = randomUUID();
-  const { type, subject, content, tags = [], source = null, confidence = 2, ttl } = input;
+  const { type, subject, content, tags = [], source = null, importance = 5, ttl } = input;
 
   log('debug', 'Storing memory', { type, subject, contentLength: content.length, tags, ttl });
 
@@ -91,8 +98,8 @@ export async function storeMemory(input: StoreMemoryInput): Promise<string> {
 
   const insertAll = db.transaction(() => {
     db.prepare(
-      'INSERT INTO memories (id, type, subject, content, tags, source, confidence, embedding, ttl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    ).run(id, type, subject, content, tagsStr, source, confidence, embeddingBlob, ttl ?? null);
+      'INSERT INTO memories (id, type, subject, content, tags, source, importance, embedding, ttl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    ).run(id, type, subject, content, tagsStr, source, importance, embeddingBlob, ttl ?? null);
 
     for (const tag of tags) {
       db.prepare('INSERT INTO memory_tags (memory_id, tag) VALUES (?, ?)').run(id, tag);
@@ -124,7 +131,7 @@ export async function updateMemory(id: string, updates: UpdateMemoryInput): Prom
 
   const subject = updates.subject ?? existing.subject;
   const content = updates.content ?? existing.content;
-  const confidence = updates.confidence ?? existing.confidence;
+  const importance = updates.importance ?? existing.importance;
   const tags = updates.tags ?? parseTags(existing.tags);
   const tagsStr = serializeTags(tags);
 
@@ -146,8 +153,8 @@ export async function updateMemory(id: string, updates: UpdateMemoryInput): Prom
   const updateAll = db.transaction(() => {
     if (needsReembed && embeddingBlob) {
       db.prepare(
-        "UPDATE memories SET subject = ?, content = ?, tags = ?, confidence = ?, embedding = ?, updated_at = datetime('now') WHERE id = ?",
-      ).run(subject, content, tagsStr, confidence, embeddingBlob, id);
+        "UPDATE memories SET subject = ?, content = ?, tags = ?, importance = ?, embedding = ?, updated_at = datetime('now') WHERE id = ?",
+      ).run(subject, content, tagsStr, importance, embeddingBlob, id);
 
       if (isVecAvailable()) {
         db.prepare('DELETE FROM memory_vec WHERE id = ?').run(id);
@@ -155,8 +162,8 @@ export async function updateMemory(id: string, updates: UpdateMemoryInput): Prom
       }
     } else {
       db.prepare(
-        "UPDATE memories SET subject = ?, content = ?, tags = ?, confidence = ?, updated_at = datetime('now') WHERE id = ?",
-      ).run(subject, content, tagsStr, confidence, id);
+        "UPDATE memories SET subject = ?, content = ?, tags = ?, importance = ?, updated_at = datetime('now') WHERE id = ?",
+      ).run(subject, content, tagsStr, importance, id);
     }
 
     // Replace tags
@@ -179,9 +186,16 @@ export async function updateMemory(id: string, updates: UpdateMemoryInput): Prom
 
 // ─── Search (vector → FTS fallback) ───
 
+export interface SearchOptions {
+  topK?: number;
+  type?: string;
+  tags?: string[];
+  weights?: { semantic?: number; recency?: number; importance?: number };
+}
+
 export async function searchMemory(
   query: string,
-  options?: { topK?: number; type?: string; tags?: string[] },
+  options?: SearchOptions,
 ): Promise<MemorySearchResult[]> {
   const config = getConfigRef();
   const topK = options?.topK ?? config.memory.topK;
@@ -190,16 +204,26 @@ export async function searchMemory(
 
   log('debug', 'Searching memory', { query, topK, typeFilter, tagsFilter });
 
+  let results: MemorySearchResult[];
+
   if (isEmbeddingsAvailable() && isVecAvailable()) {
     try {
-      const results = await vectorSearch(query, topK, typeFilter, tagsFilter, config.memory.scoreThreshold);
-      if (results.length > 0) return results;
+      results = await vectorSearch(query, topK, typeFilter, tagsFilter, config.memory.scoreThreshold, options?.weights);
+      if (results.length > 0) {
+        // Track access for returned results (async, non-blocking)
+        trackAccessBatch(results.map(r => r.id));
+        return results;
+      }
     } catch (err) {
       log('warn', 'Vector search failed, falling back to text search', { error: String(err) });
     }
   }
 
-  return textSearch(query, topK, typeFilter, tagsFilter);
+  results = textSearch(query, topK, typeFilter, tagsFilter, options?.weights);
+  if (results.length > 0) {
+    trackAccessBatch(results.map(r => r.id));
+  }
+  return results;
 }
 
 async function vectorSearch(
@@ -208,6 +232,7 @@ async function vectorSearch(
   typeFilter: string | undefined,
   tagsFilter: string[] | undefined,
   threshold: number,
+  weightOverrides?: { semantic?: number; recency?: number; importance?: number },
 ): Promise<MemorySearchResult[]> {
   const db = getDb();
   const queryBlob = vectorToBlob(await generateEmbedding(query));
@@ -227,7 +252,7 @@ async function vectorSearch(
   }
 
   const placeholders = ids.map(() => '?').join(',');
-  let sql = `SELECT id, subject, content, type, tags, source, confidence FROM memories WHERE id IN (${placeholders}) AND ${TTL_FILTER}`;
+  let sql = `SELECT id, subject, content, type, tags, source, importance, updated_at, created_at FROM memories WHERE id IN (${placeholders}) AND ${TTL_FILTER} AND consolidated_into IS NULL`;
   const params: (string | number | null)[] = [...ids];
 
   if (typeFilter) {
@@ -236,36 +261,55 @@ async function vectorSearch(
   }
 
   const memRows = db.prepare(sql).all(...params) as {
-    id: string; subject: string; content: string; type: string; tags: string | null; source: string | null; confidence: number;
+    id: string; subject: string; content: string; type: string; tags: string | null; source: string | null; importance: number; updated_at: string; created_at: string;
   }[];
 
   const memMap = new Map(memRows.map(m => [m.id, m]));
   const distMap = new Map(vecRows.map(v => [v.id, v.distance]));
 
-  const results: MemorySearchResult[] = [];
+  // Build scoring config from overrides
+  const config = getConfigRef();
+  const memConfig = config.memory as Record<string, unknown>;
+  const defaultWeights = (memConfig.weights as { semantic: number; recency: number; importance: number } | undefined) ?? { semantic: 0.6, recency: 0.2, importance: 0.2 };
+  const scoringConfig = {
+    weights: {
+      semantic: weightOverrides?.semantic ?? defaultWeights.semantic,
+      recency: weightOverrides?.recency ?? defaultWeights.recency,
+      importance: weightOverrides?.importance ?? defaultWeights.importance,
+    },
+    decayRate: (memConfig.decayRate as number | undefined) ?? 0.05,
+  };
+
+  const scored: MemorySearchResult[] = [];
   for (const id of ids) {
     const mem = memMap.get(id);
     if (!mem) continue;
 
     const distance = distMap.get(id);
     if (distance === undefined) continue;
-    const score = 1 - distance;
-    if (score < threshold) continue;
+    const embeddingScore = 1 - distance;
+    if (embeddingScore < threshold) continue;
 
-    results.push({
+    const compositeScore = computeCompositeScore(embeddingScore, mem.updated_at, mem.importance, scoringConfig);
+
+    scored.push({
       id: mem.id,
       subject: mem.subject,
       content: mem.content,
       type: mem.type,
       tags: parseTags(mem.tags),
       source: mem.source,
-      confidence: mem.confidence,
-      score,
+      importance: mem.importance,
+      score: compositeScore,
+      created_at: mem.created_at,
+      updated_at: mem.updated_at,
     });
-
-    if (results.length >= topK) break;
   }
 
+  // Re-sort by composite score
+  scored.sort((a, b) => b.score - a.score);
+
+  const results = scored.slice(0, topK);
   log('debug', 'Vector search results', { resultCount: results.length, topScore: results[0]?.score });
   return results;
 }
@@ -275,6 +319,7 @@ function textSearch(
   topK: number,
   typeFilter: string | undefined,
   tagsFilter: string[] | undefined,
+  weightOverrides?: { semantic?: number; recency?: number; importance?: number },
 ): MemorySearchResult[] {
   const db = getDb();
 
@@ -288,10 +333,10 @@ function textSearch(
 
   try {
     let sql = `
-      SELECT f.id, f.rank, m.subject, m.content, m.type, m.tags, m.source, m.confidence
+      SELECT f.id, f.rank, m.subject, m.content, m.type, m.tags, m.source, m.importance, m.updated_at, m.created_at
       FROM memory_fts f
       JOIN memories m ON m.id = f.id
-      WHERE memory_fts MATCH ? AND ${TTL_FILTER}`;
+      WHERE memory_fts MATCH ? AND ${TTL_FILTER} AND m.consolidated_into IS NULL`;
     const params: (string | number | null)[] = [ftsQuery];
 
     if (typeFilter) {
@@ -309,10 +354,10 @@ function textSearch(
     }
 
     sql += ' ORDER BY f.rank LIMIT ?';
-    params.push(topK);
+    params.push(topK * 2);
 
     const rows = db.prepare(sql).all(...params) as {
-      id: string; rank: number; subject: string; content: string; type: string; tags: string | null; source: string | null; confidence: number;
+      id: string; rank: number; subject: string; content: string; type: string; tags: string | null; source: string | null; importance: number; updated_at: string; created_at: string;
     }[];
 
     log('debug', 'FTS search results', { resultCount: rows.length, query: ftsQuery });
@@ -324,18 +369,43 @@ function textSearch(
     const maxRank = Math.max(...absRanks);
     const range = maxRank - minRank;
 
-    return rows.map(r => ({
-      id: r.id,
-      subject: r.subject,
-      content: r.content,
-      type: r.type,
-      tags: parseTags(r.tags),
-      source: r.source,
-      confidence: r.confidence,
-      score: range > 0
+    // Build scoring config
+    const config = getConfigRef();
+    const memConfig = config.memory as Record<string, unknown>;
+    const defaultWeights = (memConfig.weights as { semantic: number; recency: number; importance: number } | undefined) ?? { semantic: 0.6, recency: 0.2, importance: 0.2 };
+    const scoringConfig = {
+      weights: {
+        semantic: weightOverrides?.semantic ?? defaultWeights.semantic,
+        recency: weightOverrides?.recency ?? defaultWeights.recency,
+        importance: weightOverrides?.importance ?? defaultWeights.importance,
+      },
+      decayRate: (memConfig.decayRate as number | undefined) ?? 0.05,
+    };
+
+    const scored = rows.map(r => {
+      const ftsScore = range > 0
         ? 1.0 - ((Math.abs(r.rank) - minRank) / range) * 0.5
-        : 0.75,
-    }));
+        : 0.75;
+
+      const compositeScore = computeCompositeScore(ftsScore, r.updated_at, r.importance, scoringConfig);
+
+      return {
+        id: r.id,
+        subject: r.subject,
+        content: r.content,
+        type: r.type,
+        tags: parseTags(r.tags),
+        source: r.source,
+        importance: r.importance,
+        score: compositeScore,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      };
+    });
+
+    // Re-sort by composite score
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topK);
   } catch (err) {
     log('warn', 'FTS search failed', { error: String(err), query: ftsQuery });
     return [];
@@ -346,19 +416,24 @@ function textSearch(
 
 export function recallMemory(
   id?: string,
-  filter?: { type?: string; tags?: string[] },
+  filter?: { type?: string; tags?: string[]; includeConsolidated?: boolean },
 ): MemoryEntry[] {
   const db = getDb();
+  const includeConsolidated = filter?.includeConsolidated ?? false;
 
   if (id) {
     const result = db.prepare(
-      `SELECT id, type, subject, content, tags, source, confidence, ttl, created_at, updated_at FROM memories WHERE id = ? AND ${TTL_FILTER}`,
+      `SELECT id, type, subject, content, tags, source, importance, access_count, last_accessed_at, consolidated_into, ttl, created_at, updated_at FROM memories WHERE id = ? AND ${TTL_FILTER}`,
     ).get(id) as MemoryEntry | null;
     return result ? [result] : [];
   }
 
   const conditions: string[] = [TTL_FILTER];
   const params: (string | number | null)[] = [];
+
+  if (!includeConsolidated) {
+    conditions.push('consolidated_into IS NULL');
+  }
 
   if (filter?.type) {
     conditions.push('type = ?');
@@ -375,7 +450,7 @@ export function recallMemory(
   }
 
   return db.prepare(
-    `SELECT id, type, subject, content, tags, source, confidence, ttl, created_at, updated_at FROM memories
+    `SELECT id, type, subject, content, tags, source, importance, access_count, last_accessed_at, consolidated_into, ttl, created_at, updated_at FROM memories
      WHERE ${conditions.join(' AND ')}
      ORDER BY updated_at DESC LIMIT 20`,
   ).all(...params) as MemoryEntry[];
@@ -391,7 +466,7 @@ export function deleteMemory(id: string): boolean {
     db.prepare('DELETE FROM memories WHERE id = ?').run(id);
     const { count } = db.prepare('SELECT changes() as count').get() as { count: number };
     if (count > 0) {
-      // memory_tags cleaned up via CASCADE
+      // memory_tags + entity mentions cleaned up via CASCADE
       if (isVecAvailable()) {
         db.prepare('DELETE FROM memory_vec WHERE id = ?').run(id);
       }
@@ -404,6 +479,11 @@ export function deleteMemory(id: string): boolean {
     }
   });
   deleteAll();
+
+  // Clean up entity references outside transaction (non-critical)
+  if (deleted) {
+    cleanupEntityReferences(id);
+  }
 
   return deleted;
 }
@@ -423,7 +503,7 @@ export function cleanupExpired(): number {
   const placeholders = ids.map(() => '?').join(',');
 
   const deleteAll = db.transaction(() => {
-    // memory_tags cleaned up via CASCADE
+    // memory_tags + entity mentions cleaned up via CASCADE
     db.prepare(`DELETE FROM memories WHERE id IN (${placeholders})`).run(...ids);
     if (isVecAvailable()) {
       db.prepare(`DELETE FROM memory_vec WHERE id IN (${placeholders})`).run(...ids);
@@ -437,6 +517,11 @@ export function cleanupExpired(): number {
     }
   });
   deleteAll();
+
+  // Entity cleanup
+  for (const id of ids) {
+    cleanupEntityReferences(id);
+  }
 
   log('info', 'Cleaned up expired memories', { count: ids.length });
   return ids.length;
