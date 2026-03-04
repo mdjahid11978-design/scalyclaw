@@ -246,6 +246,9 @@ export default function Scheduler() {
   const reminderJobs = filteredJobs.filter((job) => REMINDER_TYPES.has(String(job.type)));
   const taskJobs = filteredJobs.filter((job) => TASK_TYPES.has(String(job.type)));
 
+  const activeReminderCount = allJobs.filter((job) => REMINDER_TYPES.has(String(job.type)) && String(job.state) === 'active').length;
+  const activeTaskCount = allJobs.filter((job) => TASK_TYPES.has(String(job.type)) && String(job.state) === 'active').length;
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -392,8 +395,12 @@ export default function Scheduler() {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'reminders' | 'tasks')}>
         <TabsList>
-          <TabsTrigger value="reminders">Reminders</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="reminders">
+            Reminders{activeReminderCount > 0 && <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5">{activeReminderCount}</Badge>}
+          </TabsTrigger>
+          <TabsTrigger value="tasks">
+            Tasks{activeTaskCount > 0 && <Badge variant="secondary" className="ml-1.5 h-5 min-w-5 px-1.5">{activeTaskCount}</Badge>}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
