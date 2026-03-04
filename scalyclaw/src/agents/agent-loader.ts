@@ -138,7 +138,7 @@ ${systemPrompt}`;
 
   // Register in config (clone to avoid mutating cache if save fails)
   const config = getConfig();
-  const agentModels = models ?? config.orchestrator.models;
+  const agentModels = models ?? [{ model: 'auto', weight: 1, priority: 1 }];
   const agentSkills = skills ?? [];
   const agentTools = tools ?? [...AGENT_ELIGIBLE_TOOL_NAMES];
   const agentMcpServers = mcpServers ?? [];

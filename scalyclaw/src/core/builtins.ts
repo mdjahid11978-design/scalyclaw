@@ -211,7 +211,7 @@ export async function registerBuiltins(): Promise<void> {
       id,
       enabled: false,
       maxIterations: manifest.maxIterations,
-      models: [],
+      models: [{ model: 'auto', weight: 1, priority: 1 }],
       skills: manifest.skills,
       tools: manifest.tools,
       mcpServers: [],

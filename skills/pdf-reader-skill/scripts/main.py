@@ -38,11 +38,12 @@ def main():
             pages.append({"page": page_num, "text": text})
             all_text_parts.append(text)
 
+        page_count = doc.page_count
         doc.close()
 
         result = {
             "text": "\n".join(all_text_parts),
-            "page_count": doc.page_count,
+            "page_count": page_count,
             "metadata": metadata,
             "pages": pages,
         }

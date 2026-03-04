@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { getAllAgents, getAgent, createAgent, updateAgent, deleteAgent } from '../agents/agent-loader.js';
 import { publishAgentReload } from '../agents/agent-store.js';
 import { getConfig, saveConfig } from '../core/config.js';
+import { publishSkillReload } from '../skills/skill-store.js';
 import { validateId } from '../core/validation.js';
 import { runAgentGuard } from '../guards/guard.js';
 import { AGENT_ELIGIBLE_TOOL_NAMES } from '../tools/tools.js';
@@ -84,8 +85,38 @@ export function registerAgentsRoutes(server: FastifyInstance): void {
       } else {
         config.orchestrator.agents.push({ id, enabled, maxIterations: agent.maxIterations, models: agent.models, skills: agent.skills ?? [], tools: agent.tools, mcpServers: agent.mcpServers });
       }
+
+      // Cascade enable/disable to skills
+      const agentSkills = agent.skills ?? [];
+      let skillsChanged = false;
+      if (agentSkills.length > 0) {
+        if (enabled) {
+          // Enable all skills used by this agent
+          for (const skillId of agentSkills) {
+            const skill = config.skills.find(s => s.id === skillId);
+            if (skill && !skill.enabled) {
+              skill.enabled = true;
+              skillsChanged = true;
+            }
+          }
+        } else {
+          // Disable skills not used by any other enabled agent
+          const otherEnabledAgents = config.orchestrator.agents.filter(a => a.id !== id && a.enabled);
+          const skillsUsedByOthers = new Set(otherEnabledAgents.flatMap(a => a.skills ?? []));
+          for (const skillId of agentSkills) {
+            if (skillsUsedByOthers.has(skillId)) continue;
+            const skill = config.skills.find(s => s.id === skillId);
+            if (skill && skill.enabled) {
+              skill.enabled = false;
+              skillsChanged = true;
+            }
+          }
+        }
+      }
+
       await saveConfig(config);
       await publishAgentReload();
+      if (skillsChanged) await publishSkillReload();
       return { success: true, enabled };
     },
   );
