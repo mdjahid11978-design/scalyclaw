@@ -63,6 +63,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   });
 
   const trimmed = message.text.trim();
+  const command = trimmed.split(/\s/)[0].toLowerCase();
 
   // ─── Rate limiting ───
   const allowed = await checkRateLimit(channelId);
@@ -109,7 +110,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   sendTypingToChannel(channelId).catch(() => {});
 
   // ─── /stop — cancel the latest active message job only ───
-  if (trimmed === '/stop') {
+  if (command === '/stop') {
     log('info', 'Command handled: /stop', { channelId });
     const q = getQueue('messages');
     const activeJobs = await q.getJobs('active');
@@ -126,7 +127,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   }
 
   // ─── /stopall — cancel ALL active processing + drain pending ───
-  if (trimmed === '/stopall') {
+  if (command === '/stopall') {
     log('info', 'Command handled: /stopall', { channelId });
     const redis = getRedis();
     await redis.set(CANCEL_FLAG_KEY, '1', 'EX', CANCEL_FLAG_TTL_S);
@@ -151,7 +152,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   }
 
   // ─── /restart — restart the system ───
-  if (trimmed === '/restart') {
+  if (command === '/restart') {
     log('info', 'Command handled: /restart', { channelId });
     const scriptPath = join(PATHS.base, 'scalyclaw.sh');
     if (!existsSync(scriptPath)) {
@@ -177,7 +178,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   }
 
   // ─── /shutdown — shut down the system ───
-  if (trimmed === '/shutdown') {
+  if (command === '/shutdown') {
     log('info', 'Command handled: /shutdown', { channelId });
     const scriptPath = join(PATHS.base, 'scalyclaw.sh');
     if (!existsSync(scriptPath)) {
@@ -202,7 +203,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   }
 
   // ─── /clear — clear conversation + prompt cache ───
-  if (trimmed === '/clear') {
+  if (command === '/clear') {
     const { clearMessages } = await import('../core/db.js');
     const { invalidatePromptCache } = await import('../prompt/builder.js');
     clearMessages();
@@ -213,7 +214,7 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   }
 
   // ─── /update — check for updates and ask for confirmation ───
-  if (trimmed === '/update') {
+  if (command === '/update') {
     log('info', 'Command handled: /update', { channelId });
     const repoDir = join(PATHS.base, 'repo');
     const scriptPath = join(repoDir, 'website', 'install.sh');
@@ -261,12 +262,12 @@ export async function handleIncomingMessage(message: NormalizedMessage): Promise
   }
 
   // ─── /cancel reminder|task [id] ───
-  if (trimmed === '/cancel') {
+  if (command === '/cancel') {
     await sendToChannel(channelId, 'Usage: `/cancel reminder <id>` or `/cancel task <id>`');
     return;
   }
 
-  const isCommand = KNOWN_COMMANDS.has(trimmed.split(/\s/)[0]);
+  const isCommand = KNOWN_COMMANDS.has(command);
 
   const attachments = message.attachments.length > 0
     ? message.attachments.map(a => ({ type: a.type, filePath: a.filePath, fileName: a.fileName, mimeType: a.mimeType }))
