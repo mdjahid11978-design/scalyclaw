@@ -6,6 +6,7 @@ import { wsClient } from '@/lib/ws';
 import { setToken } from '@/lib/api';
 
 const Overview = lazy(() => import('@/pages/Overview'));
+const Activity = lazy(() => import('@/pages/Activity'));
 const Mind = lazy(() => import('@/pages/Mind'));
 
 const Channels = lazy(() => import('@/pages/Channels'));
@@ -103,6 +104,7 @@ export function App() {
         <Suspense fallback={loading}>
           <Routes>
             <Route index element={<Overview />} />
+            <Route path="activity" element={<Activity />} />
             <Route path="mind" element={<Mind />} />
 
             <Route path="channels" element={<Channels />} />

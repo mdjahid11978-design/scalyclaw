@@ -6,6 +6,7 @@ import { ChatOverlay } from '@/components/shared/ChatOverlay';
 
 const titles: Record<string, string> = {
   '/': 'Overview',
+  '/activity': 'Neural Activity',
   '/mind': 'Mind',
 
   '/channels': 'Channels',
@@ -35,6 +36,7 @@ export function Shell({ wsStatus, children }: ShellProps) {
   const [chatUnread, setChatUnread] = useState(0);
   const location = useLocation();
   const title = titles[location.pathname] ?? 'ScalyClaw';
+  const isSanctum = location.pathname === '/activity';
 
   function handleChatClick() {
     setChatOpen(true);
@@ -46,13 +48,15 @@ export function Shell({ wsStatus, children }: ShellProps) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Desktop sidebar */}
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+      {/* Desktop sidebar (hidden in Sanctum) */}
+      {!isSanctum && (
+        <div className="hidden md:block">
+          <Sidebar />
+        </div>
+      )}
 
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+      {/* Mobile sidebar overlay (hidden in Sanctum) */}
+      {!isSanctum && sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
           <div className="relative z-10 h-full">
