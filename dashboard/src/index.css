@@ -140,36 +140,13 @@ body {
   opacity: 1;
 }
 
-/* ── Activity page ── */
+/* ── Activity / Sanctum page ── */
 
 .glass-panel {
   background: rgba(10, 10, 10, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.activity-pulse-ring {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 180px;
-  height: 180px;
-  border-radius: 9999px;
-  border: 1.5px solid rgba(16, 185, 129, 0.5);
-  animation: pulse-ring 1.5s ease-out forwards;
-  pointer-events: none;
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: translate(-50%, -50%) scale(0.6);
-    opacity: 0.7;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(2.2);
-    opacity: 0;
-  }
 }
 
 @keyframes breathe {
@@ -180,47 +157,42 @@ body {
   animation: breathe 4s ease-in-out infinite;
 }
 .animate-breathe-fast {
-  animation: breathe 1.8s ease-in-out infinite;
+  animation: breathe 1.6s ease-in-out infinite;
 }
 
-@keyframes vibrate {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-0.5px); }
-  40% { transform: translateX(0.5px); }
-  60% { transform: translateX(-0.5px); }
-  80% { transform: translateX(0.5px); }
+@keyframes walk-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
-.animate-vibrate {
-  animation: vibrate 0.3s linear infinite;
-}
-
-.avatar-glow {
-  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.5));
-}
-.avatar-glow-purple {
-  filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.5));
-}
-.avatar-sleeping {
-  filter: brightness(0.45) drop-shadow(0 0 6px rgba(16, 185, 129, 0.15));
-}
-
-@keyframes orbit {
-  from {
-    transform: rotate(0deg) translateX(var(--orbit-radius, 130px)) rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg) translateX(var(--orbit-radius, 130px)) rotate(-360deg);
-  }
+.animate-walk-bounce {
+  animation: walk-bounce 0.28s ease-in-out infinite;
 }
 
 @keyframes float-up {
-  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
   50% { transform: translateY(-8px); opacity: 1; }
 }
 
 @keyframes sparkle {
   0%, 100% { opacity: 0; transform: scale(0); }
-  50% { opacity: 1; transform: scale(2); }
+  50% { opacity: 1; transform: scale(2.5); }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes firefly {
+  0%, 100% { transform: translate(0, 0); opacity: 0.2; }
+  25% { transform: translate(10px, -8px); opacity: 0.6; }
+  50% { transform: translate(-5px, -14px); opacity: 0.3; }
+  75% { transform: translate(8px, -4px); opacity: 0.55; }
+}
+
+@keyframes station-glow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
 }
 
 @keyframes slide-in {
