@@ -78,6 +78,11 @@ export const BUILTIN_SKILL_IDS: string[] = [
   'browser-use-skill',
   // Python — job/career (1)
   'job-description-extractor-skill',
+  // JavaScript — VCS (4)
+  'git-skill',
+  'github-skill',
+  'gitlab-skill',
+  'bitbucket-skill',
 ];
 
 // ── Built-in Agent Manifest ─────────────────────────────────────────
@@ -207,6 +212,21 @@ export const BUILTIN_AGENT_MANIFEST: Record<string, BuiltinAgentManifest> = {
   'browser-agent': {
     skills: ['browser-use-skill', 'html-to-pdf-skill', 'web-scraper-skill'],
     tools: ['send_message', 'send_file', 'execute_skill', 'file_read', 'file_write', 'memory_store', 'memory_search'],
+    maxIterations: 30,
+  },
+  'github-agent': {
+    skills: ['git-skill', 'github-skill'],
+    tools: ['send_message', 'execute_skill', 'execute_command', 'file_read', 'file_write', 'file_edit', 'list_directory', 'memory_store', 'memory_search'],
+    maxIterations: 30,
+  },
+  'gitlab-agent': {
+    skills: ['git-skill', 'gitlab-skill'],
+    tools: ['send_message', 'execute_skill', 'execute_command', 'file_read', 'file_write', 'file_edit', 'list_directory', 'memory_store', 'memory_search'],
+    maxIterations: 30,
+  },
+  'bitbucket-agent': {
+    skills: ['git-skill', 'bitbucket-skill'],
+    tools: ['send_message', 'execute_skill', 'execute_command', 'file_read', 'file_write', 'file_edit', 'list_directory', 'memory_store', 'memory_search'],
     maxIterations: 30,
   },
 };
