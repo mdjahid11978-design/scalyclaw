@@ -28,14 +28,25 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'https://api.openai.com/v1',
     requiresKey: true,
     chatModels: [
-      { id: 'openai:gpt-4.1', hint: 'Most capable', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true } },
-      { id: 'openai:gpt-4.1-mini', hint: 'Fast and affordable', inputPrice: 0.4, outputPrice: 1.6, capabilities: { tools: true, vision: true } },
-      { id: 'openai:gpt-4.1-nano', hint: 'Fastest, lightweight', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true } },
-      { id: 'openai:gpt-4o', hint: 'Multimodal', inputPrice: 2.5, outputPrice: 10, capabilities: { tools: true, vision: true } },
-      { id: 'openai:gpt-4o-mini', hint: 'Multimodal, affordable', inputPrice: 0.15, outputPrice: 0.6, capabilities: { tools: true, vision: true } },
-      { id: 'openai:o3', hint: 'Reasoning model', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true, reasoning: true } },
-      { id: 'openai:o4-mini', hint: 'Compact reasoning', inputPrice: 1.1, outputPrice: 4.4, capabilities: { tools: true, vision: true, reasoning: true } },
-      { id: 'openai:o3-mini', hint: 'Previous gen reasoning', inputPrice: 1.1, outputPrice: 4.4, capabilities: { tools: true, reasoning: true } },
+      // ── GPT-5.4 family (released March 2026, flagship) ──
+      { id: 'openai:gpt-5.4', hint: 'GPT-5.4 — flagship, 1M ctx, agentic + high reasoning', inputPrice: 2.5, outputPrice: 15, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:gpt-5.4-mini', hint: 'GPT-5.4 mini — 400K ctx, coding & subagents', inputPrice: 0.75, outputPrice: 4.5, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:gpt-5.4-nano', hint: 'GPT-5.4 nano — cheapest 5.4-class, 400K ctx', inputPrice: 0.2, outputPrice: 1.25, capabilities: { tools: true, vision: true, reasoning: true } },
+      // ── GPT-5 (Aug 2025) ──
+      { id: 'openai:gpt-5', hint: 'GPT-5 — 400K ctx, reasoning', inputPrice: 0.625, outputPrice: 5, capabilities: { tools: true, vision: true, reasoning: true } },
+      // ── o-series reasoning models ──
+      { id: 'openai:o3-pro', hint: 'o3-pro — higher compute reasoning', inputPrice: 20, outputPrice: 80, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o3', hint: 'o3 — reasoning', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o3-deep-research', hint: 'o3 deep research — analysis/research optimized', inputPrice: 10, outputPrice: 40, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o4-mini', hint: 'o4-mini — compact reasoning', inputPrice: 1.1, outputPrice: 4.4, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o4-mini-deep-research', hint: 'o4-mini deep research', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o3-mini', hint: 'o3-mini — previous gen reasoning', inputPrice: 1.1, outputPrice: 4.4, capabilities: { tools: true, reasoning: true } },
+      // ── GPT-4 family (legacy, still available) ──
+      { id: 'openai:gpt-4.1', hint: 'GPT-4.1', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4.1-mini', hint: 'GPT-4.1 mini', inputPrice: 0.4, outputPrice: 1.6, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4.1-nano', hint: 'GPT-4.1 nano', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4o', hint: 'GPT-4o — multimodal', inputPrice: 2.5, outputPrice: 10, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4o-mini', hint: 'GPT-4o mini — multimodal, affordable', inputPrice: 0.15, outputPrice: 0.6, capabilities: { tools: true, vision: true } },
     ],
     embeddingModels: [
       { id: 'openai:text-embedding-3-small', hint: '1536 dims', dimensions: 1536, inputPrice: 0.02 },
@@ -116,9 +127,17 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     requiresKey: true,
     chatModels: [
-      { id: 'google:gemini-2.5-pro', hint: 'Most capable', inputPrice: 1.25, outputPrice: 10, capabilities: { tools: true, vision: true, reasoning: true } },
-      { id: 'google:gemini-2.5-flash', hint: 'Fast and efficient', inputPrice: 0.15, outputPrice: 0.6, capabilities: { tools: true, vision: true, reasoning: true } },
-      { id: 'google:gemini-2.0-flash', hint: 'Previous gen fast', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true } },
+      // ── Gemini 3.1 (released March 2026) ──
+      { id: 'google:gemini-3.1-pro-preview', hint: 'Gemini 3.1 Pro — flagship, 2M ctx, agentic', inputPrice: 2, outputPrice: 12, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'google:gemini-3.1-flash-lite-preview', hint: 'Gemini 3.1 Flash-Lite — cheapest, high-volume', inputPrice: 0.25, outputPrice: 1.5, capabilities: { tools: true, vision: true, reasoning: true } },
+      // ── Gemini 3 (released Dec 2025) ──
+      { id: 'google:gemini-3-flash-preview', hint: 'Gemini 3 Flash — speed + frontier intelligence, 1M ctx', inputPrice: 0.5, outputPrice: 3, capabilities: { tools: true, vision: true, reasoning: true } },
+      // ── Gemini 2.5 ──
+      { id: 'google:gemini-2.5-pro', hint: 'Gemini 2.5 Pro — coding & complex reasoning', inputPrice: 1.25, outputPrice: 10, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'google:gemini-2.5-flash', hint: 'Gemini 2.5 Flash — 1M ctx, hybrid reasoning', inputPrice: 0.3, outputPrice: 2.5, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'google:gemini-2.5-flash-lite', hint: 'Gemini 2.5 Flash-Lite — smallest, cheapest', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true, reasoning: true } },
+      // ── Gemini 2.0 (legacy) ──
+      { id: 'google:gemini-2.0-flash', hint: 'Gemini 2.0 Flash — previous gen fast', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true } },
     ],
     embeddingModels: [
       { id: 'google:text-embedding-004', hint: '768 dims', dimensions: 768, inputPrice: 0.025 },

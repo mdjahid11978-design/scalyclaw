@@ -41,7 +41,8 @@ function parseToolArgs(raw: unknown): Record<string, unknown> {
 function isOpenAIReasoningModel(model: string): boolean {
   const lower = model.toLowerCase();
   const bare = lower.includes('/') ? lower.slice(lower.lastIndexOf('/') + 1) : lower;
-  return /^o[1-9](-|$)/.test(bare) || /^gpt-5(-|$)/.test(bare);
+  // o1/o3/o4/o5 families (including -mini, -pro, -deep-research) and all GPT-5.x variants.
+  return /^o[1-9]([.\-]|$)/.test(bare) || /^gpt-5([.\-]|$)/.test(bare);
 }
 
 export interface OpenAICompatibleOptions {
