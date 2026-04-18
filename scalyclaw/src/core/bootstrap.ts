@@ -12,9 +12,7 @@ import { loadAllAgents } from '../agents/agent-loader.js';
 import { connectAll as connectMcpServers } from '../mcp/mcp-manager.js';
 import { invalidatePromptCache } from '../prompt/builder.js';
 import { registerBuiltins } from './builtins.js';
-import { registerProvider } from '../models/registry.js';
-import { createMiniMaxProvider } from '../models/providers/minimax.js';
-import { createLMStudioProvider } from '../models/providers/lmstudio.js';
+import { registerProviders } from '../models/providers/index.js';
 import { initQueue } from '@scalyclaw/shared/queue/queue.js';
 import { subscribeToCancelSignal } from '@scalyclaw/shared/queue/cancel-signal.js';
 import type { Redis } from 'ioredis';
@@ -104,15 +102,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
   ]);
 
   // ── Model Providers ──
-  const providers = resolvedConfig.models.providers;
-  if (providers.minimax?.apiKey) {
-    registerProvider(createMiniMaxProvider(providers.minimax.apiKey, providers.minimax.baseUrl));
-    log('info', 'Registered provider: minimax');
-  }
-  if (providers.lmstudio) {
-    registerProvider(createLMStudioProvider(providers.lmstudio.baseUrl));
-    log('info', 'Registered provider: lmstudio');
-  }
+  registerProviders(resolvedConfig.models.providers);
 
   // ── Reload Subscriptions ──
   const reloadSubscriber = createRedisClient(redisConfig);
@@ -155,13 +145,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Bootstr
     }
 
     // Re-register model providers
-    const provs = resolved.models.providers;
-    if (provs.minimax?.apiKey) {
-      registerProvider(createMiniMaxProvider(provs.minimax.apiKey, provs.minimax.baseUrl));
-    }
-    if (provs.lmstudio) {
-      registerProvider(createLMStudioProvider(provs.lmstudio.baseUrl));
-    }
+    registerProviders(resolved.models.providers);
 
     // Process-specific handler (e.g. channel reload in main process)
     if (options.onConfigReload) {

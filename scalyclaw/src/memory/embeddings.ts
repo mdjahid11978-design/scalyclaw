@@ -1,5 +1,6 @@
 import { getConfigRef } from '../core/config.js';
 import { selectModel, parseModelId } from '../models/provider.js';
+import { createEmbeddingClient } from '../models/embedding-client.js';
 import { log } from '@scalyclaw/shared/core/logger.js';
 
 export type EmbeddingVector = number[];
@@ -51,46 +52,12 @@ export async function initEmbeddings(): Promise<void> {
     throw new Error(`Embedding provider "${providerName}" not found in config`);
   }
 
-  switch (providerName) {
-    case 'openai':
-    case 'openrouter':
-    case 'lmstudio': {
-      const { default: OpenAI } = await import('openai');
-      const client = new OpenAI({
-        apiKey: providerConfig.apiKey || 'lm-studio',
-        baseURL: providerConfig.baseUrl || (providerName === 'lmstudio' ? 'http://localhost:1234/v1' : undefined),
-      });
-      provider = {
-        async embed(text: string): Promise<EmbeddingVector> {
-          const result = await client.embeddings.create({
-            model,
-            input: text,
-            // Force float format — local servers (LM Studio, Ollama) often don't support base64
-            encoding_format: 'float',
-          });
-          return result.data[0].embedding;
-        },
-      };
-      break;
-    }
-    case 'ollama': {
-      const baseUrl = providerConfig.baseUrl || 'http://localhost:11434';
-      provider = {
-        async embed(text: string): Promise<EmbeddingVector> {
-          const response = await fetch(`${baseUrl}/api/embeddings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model, prompt: text }),
-          });
-          const data = await response.json() as { embedding: number[] };
-          return data.embedding;
-        },
-      };
-      break;
-    }
-    default:
-      throw new Error(`Embedding provider "${providerName}" not supported`);
-  }
+  const client = createEmbeddingClient(providerName, providerConfig);
+  provider = {
+    async embed(text: string): Promise<EmbeddingVector> {
+      return client.embed(text, model);
+    },
+  };
 
   log('info', 'Embeddings initialized', { provider: providerName, model, dimensions: embeddingDimensions });
 }

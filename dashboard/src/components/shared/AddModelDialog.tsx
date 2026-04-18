@@ -209,7 +209,16 @@ export function AddModelDialog({ open, onClose, onAdd, existingProviders }: AddM
                   {provider!.chatModels.map((m) => (
                     <button
                       key={m.id}
-                      onClick={() => { setSelectedModel(m.id); setInputPrice(m.inputPrice ?? 0); setOutputPrice(m.outputPrice ?? 0); }}
+                      onClick={() => {
+                        setSelectedModel(m.id);
+                        setInputPrice(m.inputPrice ?? 0);
+                        setOutputPrice(m.outputPrice ?? 0);
+                        if (m.capabilities) {
+                          setTool(m.capabilities.tools ?? true);
+                          setImage(m.capabilities.vision ?? false);
+                          setReasoning(m.capabilities.reasoning ?? false);
+                        }
+                      }}
                       className={cn(
                         'flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors',
                         selectedModel === m.id ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/50',

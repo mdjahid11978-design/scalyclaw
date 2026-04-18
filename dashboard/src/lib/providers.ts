@@ -1,10 +1,24 @@
 // Shared provider catalog used by onboarding and Models page
 
+export interface ModelCapabilities {
+  tools?: boolean;
+  vision?: boolean;
+  reasoning?: boolean;
+}
+
+export interface ChatModelInfo {
+  id: string;
+  hint: string;
+  inputPrice?: number;
+  outputPrice?: number;
+  capabilities?: ModelCapabilities;
+}
+
 export interface ProviderInfo {
   label: string;
   baseUrl: string;
   requiresKey: boolean;
-  chatModels: { id: string; hint: string; inputPrice?: number; outputPrice?: number }[];
+  chatModels: ChatModelInfo[];
   embeddingModels: { id: string; hint: string; dimensions: number; inputPrice?: number; outputPrice?: number }[];
 }
 
@@ -14,14 +28,14 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'https://api.openai.com/v1',
     requiresKey: true,
     chatModels: [
-      { id: 'openai:gpt-4.1', hint: 'Most capable', inputPrice: 2, outputPrice: 8 },
-      { id: 'openai:gpt-4.1-mini', hint: 'Fast and affordable', inputPrice: 0.4, outputPrice: 1.6 },
-      { id: 'openai:gpt-4.1-nano', hint: 'Fastest, lightweight', inputPrice: 0.1, outputPrice: 0.4 },
-      { id: 'openai:gpt-4o', hint: 'Multimodal', inputPrice: 2.5, outputPrice: 10 },
-      { id: 'openai:gpt-4o-mini', hint: 'Multimodal, affordable', inputPrice: 0.15, outputPrice: 0.6 },
-      { id: 'openai:o3', hint: 'Reasoning model', inputPrice: 2, outputPrice: 8 },
-      { id: 'openai:o4-mini', hint: 'Compact reasoning', inputPrice: 1.1, outputPrice: 4.4 },
-      { id: 'openai:o3-mini', hint: 'Previous gen reasoning', inputPrice: 1.1, outputPrice: 4.4 },
+      { id: 'openai:gpt-4.1', hint: 'Most capable', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4.1-mini', hint: 'Fast and affordable', inputPrice: 0.4, outputPrice: 1.6, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4.1-nano', hint: 'Fastest, lightweight', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4o', hint: 'Multimodal', inputPrice: 2.5, outputPrice: 10, capabilities: { tools: true, vision: true } },
+      { id: 'openai:gpt-4o-mini', hint: 'Multimodal, affordable', inputPrice: 0.15, outputPrice: 0.6, capabilities: { tools: true, vision: true } },
+      { id: 'openai:o3', hint: 'Reasoning model', inputPrice: 2, outputPrice: 8, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o4-mini', hint: 'Compact reasoning', inputPrice: 1.1, outputPrice: 4.4, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'openai:o3-mini', hint: 'Previous gen reasoning', inputPrice: 1.1, outputPrice: 4.4, capabilities: { tools: true, reasoning: true } },
     ],
     embeddingModels: [
       { id: 'openai:text-embedding-3-small', hint: '1536 dims', dimensions: 1536, inputPrice: 0.02 },
@@ -33,9 +47,9 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'https://api.anthropic.com/v1',
     requiresKey: true,
     chatModels: [
-      { id: 'anthropic:claude-opus-4-6', hint: 'Most capable', inputPrice: 15, outputPrice: 75 },
-      { id: 'anthropic:claude-sonnet-4-5-20250929', hint: 'Balanced', inputPrice: 3, outputPrice: 15 },
-      { id: 'anthropic:claude-haiku-4-5-20251001', hint: 'Fast', inputPrice: 0.8, outputPrice: 4 },
+      { id: 'anthropic:claude-opus-4-6', hint: 'Most capable', inputPrice: 15, outputPrice: 75, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'anthropic:claude-sonnet-4-5-20250929', hint: 'Balanced', inputPrice: 3, outputPrice: 15, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'anthropic:claude-haiku-4-5-20251001', hint: 'Fast', inputPrice: 0.8, outputPrice: 4, capabilities: { tools: true, vision: true, reasoning: true } },
     ],
     embeddingModels: [],
   },
@@ -69,12 +83,22 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'http://localhost:11434/v1',
     requiresKey: false,
     chatModels: [
-      { id: 'ollama:llama3.3', hint: 'Meta Llama 3.3' },
-      { id: 'ollama:qwen3', hint: 'Qwen 3' },
+      { id: 'ollama:llama3.3', hint: 'Meta Llama 3.3', capabilities: { tools: true } },
+      { id: 'ollama:qwen3', hint: 'Qwen 3', capabilities: { tools: true, reasoning: true } },
+      { id: 'ollama:qwen3.5:4b', hint: 'Qwen 3.5 — 4B, 256K ctx, thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:qwen3.5:9b', hint: 'Qwen 3.5 — 9B, 256K ctx, thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:qwen3.5:27b', hint: 'Qwen 3.5 — 27B, 256K ctx, thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:qwen3.5:35b', hint: 'Qwen 3.5 — 35B, 256K ctx, thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:qwen3.5:122b', hint: 'Qwen 3.5 — 122B, 256K ctx, thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:qwen3.6:35b-a3b', hint: 'Qwen 3.6 — 35B MoE (3B active), agentic coding', capabilities: { tools: true, vision: true, reasoning: true } },
       { id: 'ollama:gemma3', hint: 'Google Gemma 3' },
-      { id: 'ollama:phi4', hint: 'Microsoft Phi 4' },
-      { id: 'ollama:deepseek-r1', hint: 'DeepSeek R1' },
-      { id: 'ollama:mistral', hint: 'Mistral 7B' },
+      { id: 'ollama:gemma4:e2b', hint: 'Gemma 4 — E2B, 128K ctx, tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:gemma4:e4b', hint: 'Gemma 4 — E4B, 128K ctx, tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:gemma4:26b', hint: 'Gemma 4 — 26B A4B, 256K ctx, tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:gemma4:31b', hint: 'Gemma 4 — 31B dense, 256K ctx, tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'ollama:phi4', hint: 'Microsoft Phi 4', capabilities: { tools: true } },
+      { id: 'ollama:deepseek-r1', hint: 'DeepSeek R1 — reasoning', capabilities: { tools: true, reasoning: true } },
+      { id: 'ollama:mistral', hint: 'Mistral 7B', capabilities: { tools: true } },
     ],
     embeddingModels: [
       { id: 'ollama:nomic-embed-text', hint: '768 dims', dimensions: 768 },
@@ -86,9 +110,9 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     requiresKey: true,
     chatModels: [
-      { id: 'google:gemini-2.5-pro', hint: 'Most capable', inputPrice: 1.25, outputPrice: 10 },
-      { id: 'google:gemini-2.5-flash', hint: 'Fast and efficient', inputPrice: 0.15, outputPrice: 0.6 },
-      { id: 'google:gemini-2.0-flash', hint: 'Previous gen fast', inputPrice: 0.1, outputPrice: 0.4 },
+      { id: 'google:gemini-2.5-pro', hint: 'Most capable', inputPrice: 1.25, outputPrice: 10, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'google:gemini-2.5-flash', hint: 'Fast and efficient', inputPrice: 0.15, outputPrice: 0.6, capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'google:gemini-2.0-flash', hint: 'Previous gen fast', inputPrice: 0.1, outputPrice: 0.4, capabilities: { tools: true, vision: true } },
     ],
     embeddingModels: [
       { id: 'google:text-embedding-004', hint: '768 dims', dimensions: 768, inputPrice: 0.025 },
@@ -136,8 +160,8 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'https://api.deepseek.com/v1',
     requiresKey: true,
     chatModels: [
-      { id: 'deepseek:deepseek-chat', hint: 'DeepSeek V3', inputPrice: 0.27, outputPrice: 1.1 },
-      { id: 'deepseek:deepseek-reasoner', hint: 'R1 reasoning model', inputPrice: 0.55, outputPrice: 2.19 },
+      { id: 'deepseek:deepseek-chat', hint: 'DeepSeek V3', inputPrice: 0.27, outputPrice: 1.1, capabilities: { tools: true } },
+      { id: 'deepseek:deepseek-reasoner', hint: 'R1 reasoning model', inputPrice: 0.55, outputPrice: 2.19, capabilities: { tools: true, reasoning: true } },
     ],
     embeddingModels: [],
   },
@@ -160,11 +184,19 @@ export const PROVIDERS: Record<string, ProviderInfo> = {
     baseUrl: 'http://localhost:1234/v1',
     requiresKey: false,
     chatModels: [
-      { id: 'lmstudio:qwen3-8b', hint: 'Qwen 3 8B' },
-      { id: 'lmstudio:llama-3.3-8b', hint: 'Llama 3.3 8B' },
+      { id: 'lmstudio:qwen3-8b', hint: 'Qwen 3 8B', capabilities: { tools: true, reasoning: true } },
+      { id: 'lmstudio:qwen3.5-9b', hint: 'Qwen 3.5 9B — thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:qwen3.5-27b', hint: 'Qwen 3.5 27B — thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:qwen3.5-35b-a3b', hint: 'Qwen 3.5 35B MoE — thinking + tools + vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:qwen3.6-35b-a3b', hint: 'Qwen 3.6 35B MoE — agentic coding, vision', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:llama-3.3-8b', hint: 'Llama 3.3 8B', capabilities: { tools: true } },
       { id: 'lmstudio:gemma-3-12b', hint: 'Gemma 3 12B' },
-      { id: 'lmstudio:deepseek-r1-8b', hint: 'DeepSeek R1 8B' },
-      { id: 'lmstudio:phi-4-mini', hint: 'Phi 4 Mini' },
+      { id: 'lmstudio:gemma-4-e2b-it', hint: 'Gemma 4 E2B — tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:gemma-4-e4b-it', hint: 'Gemma 4 E4B — tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:gemma-4-26b-a4b-it', hint: 'Gemma 4 26B A4B — tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:gemma-4-31b-it', hint: 'Gemma 4 31B — tools + vision + thinking', capabilities: { tools: true, vision: true, reasoning: true } },
+      { id: 'lmstudio:deepseek-r1-8b', hint: 'DeepSeek R1 8B — reasoning', capabilities: { tools: true, reasoning: true } },
+      { id: 'lmstudio:phi-4-mini', hint: 'Phi 4 Mini', capabilities: { tools: true } },
     ],
     embeddingModels: [
       { id: 'lmstudio:text-embedding-nomic-embed-text-v1.5', hint: '768 dims', dimensions: 768 },

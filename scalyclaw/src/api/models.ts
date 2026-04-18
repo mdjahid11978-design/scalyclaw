@@ -76,43 +76,10 @@ export function registerModelsRoutes(server: FastifyInstance): void {
         return reply.status(404).send({ error: `Provider "${providerName}" not configured` });
       }
 
-      const testText = 'embedding test';
-      let dimensions = 0;
-
-      switch (providerName) {
-        case 'openai':
-        case 'openrouter':
-        case 'lmstudio':
-        case 'google':
-        case 'mistral':
-        case 'cohere':
-        case 'custom': {
-          const { default: OpenAI } = await import('openai');
-          const client = new OpenAI({
-            apiKey: providerConfig.apiKey || 'lm-studio',
-            baseURL: providerConfig.baseUrl || (providerName === 'lmstudio' ? 'http://localhost:1234/v1' : undefined),
-          });
-          const result = await client.embeddings.create({ model: modelName, input: testText, encoding_format: 'float' });
-          dimensions = result.data[0].embedding.length;
-          break;
-        }
-        case 'ollama': {
-          const baseUrl = providerConfig.baseUrl || 'http://localhost:11434';
-          const response = await fetch(`${baseUrl}/api/embeddings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: modelName, prompt: testText }),
-          });
-          if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
-          const data = await response.json() as { embedding: number[] };
-          dimensions = data.embedding.length;
-          break;
-        }
-        default:
-          return reply.status(400).send({ error: `Embedding test not supported for provider "${providerName}"` });
-      }
-
-      return { model, provider: providerName, ok: true, dimensions };
+      const { createEmbeddingClient } = await import('../models/embedding-client.js');
+      const client = createEmbeddingClient(providerName, providerConfig);
+      const vector = await client.embed('embedding test', modelName);
+      return { model, provider: providerName, ok: true, dimensions: vector.length };
     } catch (err) {
       log('error', 'Embedding model test failed', { model, error: String(err) });
       return { model, ok: false, error: err instanceof Error ? err.message : String(err) };
