@@ -45,3 +45,7 @@ dashboard/dist/
 
 # Worker
 worker/dist/
+
+# Rust build artifacts (password-generator-skill, etc.)
+target/
+

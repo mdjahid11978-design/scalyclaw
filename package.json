@@ -14,7 +14,7 @@
   "dependencies": {
     "@clack/prompts": "^1.0.1",
     "@fastify/multipart": "^9.0.0",
-    "@fastify/static": "^8.0.0",
+    "@fastify/static": "^9.1.1",
     "@fastify/websocket": "^11.2.0",
     "@anthropic-ai/sdk": "^0.40.0",
     "@modelcontextprotocol/sdk": "^1.26.0",

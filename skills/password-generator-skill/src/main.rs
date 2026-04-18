@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read};
 
@@ -114,13 +114,13 @@ fn main() {
         input.count, input.length, charset_size
     );
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut passwords: Vec<String> = Vec::with_capacity(input.count);
 
     for _ in 0..input.count {
         let password: String = (0..input.length)
             .map(|_| {
-                let idx = rng.gen_range(0..charset_size);
+                let idx = rng.random_range(0..charset_size);
                 charset[idx]
             })
             .collect();
