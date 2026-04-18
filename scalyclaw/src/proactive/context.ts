@@ -1,13 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getAllRecentMessages } from '../core/db.js';
-import { getDb } from '../core/db.js';
+import { getAllRecentMessages, getDb } from '../core/db.js';
 import { searchMemory } from '../memory/memory.js';
 import { getEntityGraph } from '../memory/entities.js';
 import { PATHS } from '../core/paths.js';
 import { log } from '@scalyclaw/shared/core/logger.js';
 import { getProfile } from './tracker.js';
-import { getOpenTopics } from './signals.js';
 import type { ProactiveContext, Trigger, Signal } from './types.js';
 
 // ─── Build Search Query from Signals ────────────────────────────────
@@ -17,9 +15,6 @@ function buildSearchQuery(signals: Signal[]): string {
 
   for (const signal of signals) {
     const meta = signal.metadata;
-    if (signal.type === 'unfinished_topic' && Array.isArray(meta.topics)) {
-      terms.push(...(meta.topics as string[]));
-    }
     if (signal.type === 'entity_trigger' && Array.isArray(meta.entities)) {
       terms.push(...(meta.entities as Array<{ name: string }>).map(e => e.name));
     }
@@ -35,10 +30,10 @@ function buildSearchQuery(signals: Signal[]): string {
   return terms.slice(0, 5).join(' ');
 }
 
-// ─── Get Pending Deliverables ───────────────────────────────────────
-
-function getPendingDeliverables(lastUserMsgAt: string | null): Array<{ content: string; source: string }> {
-  if (!lastUserMsgAt) return [];
+/** Matches the cursor logic in detectPendingDeliverables: use lastProactiveAt,
+ *  fall back to "anything in the last 24h" on cold start. */
+function getPendingDeliverables(lastProactiveAt: string | null): Array<{ content: string; source: string }> {
+  const cursor = lastProactiveAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const d = getDb();
   const rows = d.prepare(
@@ -49,7 +44,7 @@ function getPendingDeliverables(lastUserMsgAt: string | null): Array<{ content: 
        AND created_at > ?
      ORDER BY created_at DESC
      LIMIT 10`
-  ).all(lastUserMsgAt) as Array<{ content: string; metadata: string }>;
+  ).all(cursor) as Array<{ content: string; metadata: string }>;
 
   return rows.map(r => {
     let source = 'result';
@@ -83,7 +78,6 @@ function getTemporalMemories(): Array<{ subject: string; content: string }> {
 export async function assembleContext(trigger: Trigger): Promise<ProactiveContext> {
   const profile = getProfile();
 
-  // Load identity
   let identity = '';
   try {
     identity = await readFile(join(PATHS.mind, 'IDENTITY.md'), 'utf-8');
@@ -91,7 +85,7 @@ export async function assembleContext(trigger: Trigger): Promise<ProactiveContex
     log('debug', 'Proactive context: IDENTITY.md not found');
   }
 
-  // Recent messages (global, all channels)
+  // Recent messages across all channels
   const rawMessages = getAllRecentMessages(20);
   const recentMessages = rawMessages.map(m => ({
     role: m.role,
@@ -100,7 +94,7 @@ export async function assembleContext(trigger: Trigger): Promise<ProactiveContex
     createdAt: m.created_at,
   }));
 
-  // Semantic memory search
+  // Semantic memory search seeded from signals
   const query = buildSearchQuery(trigger.signals);
   let memories: ProactiveContext['memories'] = [];
   try {
@@ -116,7 +110,7 @@ export async function assembleContext(trigger: Trigger): Promise<ProactiveContex
   }
 
   // Entity graph for referenced entities
-  let entityGraph: ProactiveContext['entityGraph'] = [];
+  const entityGraph: ProactiveContext['entityGraph'] = [];
   for (const signal of trigger.signals) {
     if (signal.type === 'entity_trigger' && Array.isArray(signal.metadata.entities)) {
       for (const ent of (signal.metadata.entities as Array<{ name: string }>).slice(0, 3)) {
@@ -131,26 +125,19 @@ export async function assembleContext(trigger: Trigger): Promise<ProactiveContex
               });
             }
           }
-        } catch {}
+        } catch { /* entity graph best-effort */ }
       }
     }
   }
 
-  // Temporal memories
   const temporalMemories = getTemporalMemories();
-
-  // Open topics
-  const openTopics = getOpenTopics();
-
-  // Pending deliverables
-  const pendingDeliverables = getPendingDeliverables(profile.lastUserMsgAt);
+  const pendingDeliverables = getPendingDeliverables(profile.lastProactiveAt);
 
   return {
     recentMessages,
     memories,
     entityGraph,
     temporalMemories,
-    openTopics,
     pendingDeliverables,
     profile,
     identity,

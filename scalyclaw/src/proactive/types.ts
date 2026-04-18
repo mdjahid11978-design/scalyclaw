@@ -1,10 +1,9 @@
 // ─── Trigger Types ──────────────────────────────────────────────────
 
-export type TriggerType = 'urgent' | 'deliverable' | 'follow_up' | 'insight' | 'check_in';
+export type TriggerType = 'urgent' | 'deliverable' | 'insight' | 'check_in';
 
 export type SignalType =
   | 'idle'
-  | 'unfinished_topic'
   | 'pending_deliverable'
   | 'time_sensitive'
   | 'entity_trigger'
@@ -14,7 +13,6 @@ export type SignalType =
 export type EngagementOutcome = 'correct_detection' | 'false_alarm' | 'pending';
 export type Sentiment = 'positive' | 'neutral' | 'negative';
 export type StylePreference = 'minimal' | 'balanced' | 'proactive';
-export type TopicStatus = 'open' | 'resolved' | 'expired';
 
 // ─── Signals ────────────────────────────────────────────────────────
 
@@ -62,23 +60,12 @@ export interface EngagementProfile {
   updatedAt: string;
 }
 
-// ─── Topic Tracking ─────────────────────────────────────────────────
-
-export interface TrackedTopic {
-  id: string;
-  topic: string;
-  status: TopicStatus;
-  context: string | null;
-  lastMentionedAt: string;
-  createdAt: string;
-}
-
-// ─── LLM Evaluation ────────────────────────────────────────────────
+// ─── LLM Evaluation + Generation (merged) ──────────────────────────
 
 export interface EvaluationResult {
   engage: boolean;
   triggerType: TriggerType;
-  confidence: number;
+  message: string | null;   // null when engage=false
   reasoning: string;
 }
 
@@ -89,7 +76,6 @@ export interface ProactiveContext {
   memories: Array<{ subject: string; content: string; type: string; importance: number }>;
   entityGraph: Array<{ name: string; type: string; relations: Array<{ relation: string; target: string }> }>;
   temporalMemories: Array<{ subject: string; content: string }>;
-  openTopics: TrackedTopic[];
   pendingDeliverables: Array<{ content: string; source: string }>;
   profile: EngagementProfile;
   identity: string;

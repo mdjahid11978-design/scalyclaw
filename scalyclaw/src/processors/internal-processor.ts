@@ -371,17 +371,25 @@ async function processProactiveCheck(job: Job<ProactiveCheckData>): Promise<void
 async function processProactiveEval(job: Job<ProactiveEvalData>): Promise<void> {
   log('debug', 'Running proactive deep evaluation', { jobId: job.id });
 
-  const result = await runDeepEvaluation(job.data.signals as any);
+  const result = await runDeepEvaluation();
   if (result) {
     const redis = getRedis();
-    await publishProgress(redis, result.channelId, {
-      jobId: job.id!,
-      type: 'complete',
-      result: result.message,
-    });
+    // Publish progress to each delivered channel so dashboards/chat overlays
+    // update immediately for any channel that received the proactive message.
+    for (const channelId of result.deliveredChannels) {
+      await publishProgress(redis, channelId, {
+        jobId: job.id!,
+        type: 'complete',
+        result: result.message,
+      });
+    }
   }
 
-  log('debug', 'Proactive deep evaluation done', { jobId: job.id, sent: result ? 1 : 0 });
+  log('debug', 'Proactive deep evaluation done', {
+    jobId: job.id,
+    delivered: result?.deliveredChannels.length ?? 0,
+    failed: result?.failedChannels.length ?? 0,
+  });
 }
 
 // ─── Memory Consolidation ───

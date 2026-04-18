@@ -89,30 +89,31 @@ export function registerProactiveRoutes(server: FastifyInstance): void {
     return getRecentEvents(limit);
   });
 
-  // POST /api/proactive/trigger
+  // POST /api/proactive/trigger — manual smoke test
   server.post('/api/proactive/trigger', async () => {
     const config = getConfigRef();
 
-    // Detect signals and run deep evaluation
     const signals = await detectAllSignals(config.proactive);
     if (signals.length === 0) {
       return { triggered: 0, message: 'No signals detected' };
     }
 
-    const result = await runDeepEvaluation(signals);
+    const result = await runDeepEvaluation();
     if (!result) {
-      return { triggered: 0, message: 'Evaluation decided not to engage' };
+      return { triggered: 0, message: 'Evaluation decided not to engage or all deliveries failed' };
     }
 
     log('info', 'Proactive message sent (manual trigger)', {
-      channelId: result.channelId,
       triggerType: result.triggerType,
+      deliveredChannels: result.deliveredChannels,
+      failedChannels: result.failedChannels,
     });
 
     return {
-      triggered: 1,
+      triggered: result.deliveredChannels.length,
       result: {
-        channelId: result.channelId,
+        deliveredChannels: result.deliveredChannels,
+        failedChannels: result.failedChannels,
         triggerType: result.triggerType,
         messagePreview: result.message.substring(0, 100),
       },

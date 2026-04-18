@@ -185,7 +185,11 @@ export function computeAdaptiveThreshold(
   profile: EngagementProfile,
   range: { min: number; max: number },
 ): number {
-  const engagementRate = profile.totalEngaged / Math.max(profile.totalSent, 1);
+  // Cold start: not enough evidence to judge engagement rate. Use the midpoint
+  // instead of the strictest value so the system actually fires for new users.
+  if (profile.totalSent < 5) return (range.min + range.max) / 2;
+
+  const engagementRate = profile.totalEngaged / profile.totalSent;
   // High engagement → lower threshold → more proactive
   // Low engagement → higher threshold → less proactive
   return range.max - engagementRate * (range.max - range.min);

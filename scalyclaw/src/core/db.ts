@@ -210,15 +210,7 @@ function runMigrations(db: Database, dimensions: number): void {
     );
     INSERT OR IGNORE INTO proactive_profile (id) VALUES (1);
 
-    CREATE TABLE IF NOT EXISTS proactive_topics (
-      id                TEXT PRIMARY KEY,
-      topic             TEXT NOT NULL,
-      status            TEXT DEFAULT 'open',
-      context           TEXT,
-      last_mentioned_at TEXT DEFAULT (datetime('now')),
-      created_at        TEXT DEFAULT (datetime('now'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_proactive_topics_status ON proactive_topics(status);
+    DROP TABLE IF EXISTS proactive_topics;
   `);
 
   log('info', 'Database migrations complete');

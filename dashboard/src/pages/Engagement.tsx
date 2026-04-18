@@ -30,7 +30,6 @@ interface EngagementConfig {
   signals: {
     idleThresholdMinutes: number;
     idleMaxDays: number;
-    topicExpiryHours: number;
     timeSensitiveLeadMinutes: number;
     returnFromAbsenceHours: number;
   };
@@ -45,7 +44,6 @@ interface EngagementConfig {
     cooldownSeconds: {
       urgent: number;
       deliverable: number;
-      follow_up: number;
       insight: number;
       check_in: number;
     };
@@ -64,7 +62,6 @@ interface EngagementConfig {
   triggerWeights: {
     urgent: number;
     deliverable: number;
-    follow_up: number;
     insight: number;
     check_in: number;
   };
@@ -343,14 +340,6 @@ export default function Engagement() {
                   onChange={(e) => config.update((c) => { c.signals.idleMaxDays = Number(e.target.value); })}
                 />
               </Field>
-              <Field label="Topic Expiry (hours)" description="Hours before an unfinished topic expires.">
-                <Input
-                  type="number"
-                  min="1"
-                  value={String(engagement.signals.topicExpiryHours)}
-                  onChange={(e) => config.update((c) => { c.signals.topicExpiryHours = Number(e.target.value); })}
-                />
-              </Field>
               <Field label="Time-Sensitive Lead (min)" description="Minutes before a deadline to trigger time-sensitive signal.">
                 <Input
                   type="number"
@@ -395,7 +384,7 @@ export default function Engagement() {
 
             <p className="text-sm font-medium">Cooldown per Trigger Type (seconds)</p>
             <div className="grid gap-4 sm:grid-cols-3">
-              {(['urgent', 'deliverable', 'follow_up', 'insight', 'check_in'] as const).map((t) => (
+              {(['urgent', 'deliverable', 'insight', 'check_in'] as const).map((t) => (
                 <Field key={t} label={t.replace('_', ' ')} description={`Cooldown after sending a ${t.replace('_', ' ')} message.`}>
                   <Input
                     type="number"
@@ -476,7 +465,7 @@ export default function Engagement() {
               Weight each trigger type when computing aggregate signal strength. Higher weight = more likely to trigger.
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
-              {(['urgent', 'deliverable', 'follow_up', 'insight', 'check_in'] as const).map((t) => (
+              {(['urgent', 'deliverable', 'insight', 'check_in'] as const).map((t) => (
                 <Field key={t} label={t.replace('_', ' ')} description={`Weight for ${t.replace('_', ' ')} triggers (0-1).`}>
                   <Input
                     type="number"

@@ -1,10 +1,10 @@
 import { getRedis } from '@scalyclaw/shared/core/redis.js';
-import { getDb, getAllRecentMessages } from '../core/db.js';
+import { getDb } from '../core/db.js';
 import { getTopEntities } from '../memory/entities.js';
 import { log } from '@scalyclaw/shared/core/logger.js';
 import { ACTIVITY_KEY_PREFIX } from '../const/constants.js';
 import { getProfile } from './tracker.js';
-import type { Signal, SignalType, Trigger, TriggerType, TrackedTopic } from './types.js';
+import type { Signal, SignalType, Trigger, TriggerType } from './types.js';
 import type { ScalyClawConfig } from '../core/config.js';
 
 // ─── Signal-to-Trigger Mapping ──────────────────────────────────────
@@ -12,7 +12,6 @@ import type { ScalyClawConfig } from '../core/config.js';
 const SIGNAL_TRIGGER_MAP: Record<SignalType, TriggerType> = {
   time_sensitive: 'urgent',
   pending_deliverable: 'deliverable',
-  unfinished_topic: 'follow_up',
   entity_trigger: 'insight',
   idle: 'check_in',
   user_pattern: 'check_in',
@@ -22,14 +21,13 @@ const SIGNAL_TRIGGER_MAP: Record<SignalType, TriggerType> = {
 const TRIGGER_PRIORITY: Record<TriggerType, number> = {
   urgent: 1,
   deliverable: 2,
-  follow_up: 3,
-  insight: 4,
-  check_in: 5,
+  insight: 3,
+  check_in: 4,
 };
 
 // ─── Individual Signal Detectors ────────────────────────────────────
 
-/** Signal 1: Idle detection — finds most recently active channel */
+/** Signal: Idle detection — any channel idle past the threshold. */
 async function detectIdle(config: ScalyClawConfig['proactive']): Promise<Signal | null> {
   const redis = getRedis();
   const keys = await redis.keys(`${ACTIVITY_KEY_PREFIX}*`);
@@ -39,14 +37,14 @@ async function detectIdle(config: ScalyClawConfig['proactive']): Promise<Signal 
   const thresholdMs = config.signals.idleThresholdMinutes * 60_000;
   const maxMs = config.signals.idleMaxDays * 24 * 60 * 60 * 1000;
 
+  let bestIdle = 0;
   let bestChannel: string | null = null;
-  let bestIdle = Infinity;
 
   for (const key of keys) {
     const tsStr = await redis.get(key);
     if (!tsStr) continue;
     const idleMs = now - Number(tsStr);
-    if (idleMs >= thresholdMs && idleMs < maxMs && idleMs < bestIdle) {
+    if (idleMs >= thresholdMs && idleMs < maxMs && idleMs > bestIdle) {
       bestIdle = idleMs;
       bestChannel = key.slice(ACTIVITY_KEY_PREFIX.length);
     }
@@ -65,36 +63,16 @@ async function detectIdle(config: ScalyClawConfig['proactive']): Promise<Signal 
   };
 }
 
-/** Signal 2: Unfinished topics from proactive_topics table */
-function detectUnfinishedTopics(config: ScalyClawConfig['proactive']): Signal | null {
-  const d = getDb();
-  const topics = d.prepare(
-    `SELECT * FROM proactive_topics
-     WHERE status = 'open'
-       AND last_mentioned_at > datetime('now', ? || ' hours')
-     ORDER BY last_mentioned_at ASC`
-  ).all(`-${config.signals.topicExpiryHours}`) as Array<{
-    id: string; topic: string; context: string | null; last_mentioned_at: string;
-  }>;
-
-  if (topics.length === 0) return null;
-
-  // Strength increases with time since last mention
-  const oldest = topics[0];
-  const hoursSince = (Date.now() - new Date(oldest.last_mentioned_at).getTime()) / 3_600_000;
-  const strength = Math.min(0.3 + (hoursSince / config.signals.topicExpiryHours) * 0.7, 1);
-
-  return {
-    type: 'unfinished_topic',
-    strength,
-    metadata: { topics: topics.map(t => t.topic), topicIds: topics.map(t => t.id) },
-  };
-}
-
-/** Signal 3: Pending deliverables — assistant messages from scheduled sources after last user activity */
+/**
+ * Signal: pending deliverables — scheduled-task / reminder results stored in the
+ * messages table that haven't yet been surfaced proactively. The cursor is
+ * `lastProactiveAt` (not `lastUserMsgAt`) so deliverables produced while the user
+ * was idle still qualify. On cold start (`lastProactiveAt == null`) we look back
+ * 24h so the system can fire on a newly-installed instance.
+ */
 function detectPendingDeliverables(): Signal | null {
   const profile = getProfile();
-  if (!profile.lastUserMsgAt) return null;
+  const cursor = profile.lastProactiveAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const d = getDb();
   const deliverables = d.prepare(
@@ -105,7 +83,7 @@ function detectPendingDeliverables(): Signal | null {
        AND created_at > ?
      ORDER BY created_at DESC
      LIMIT 10`
-  ).all(profile.lastUserMsgAt) as Array<{ content: string; metadata: string }>;
+  ).all(cursor) as Array<{ content: string; metadata: string }>;
 
   if (deliverables.length === 0) return null;
 
@@ -116,11 +94,10 @@ function detectPendingDeliverables(): Signal | null {
   };
 }
 
-/** Signal 4: Time-sensitive memories (deadline proximity) */
-function detectTimeSensitive(config: ScalyClawConfig['proactive']): Signal | null {
+/** Signal: Time-sensitive memories (deadline proximity). */
+function detectTimeSensitive(_config: ScalyClawConfig['proactive']): Signal | null {
   const d = getDb();
 
-  // FTS search for temporal keywords in memories
   let rows: Array<{ subject: string; content: string; importance: number }>;
   try {
     rows = d.prepare(
@@ -134,13 +111,11 @@ function detectTimeSensitive(config: ScalyClawConfig['proactive']): Signal | nul
        LIMIT 5`
     ).all() as Array<{ subject: string; content: string; importance: number }>;
   } catch {
-    // FTS not available or match failed
     return null;
   }
 
   if (rows.length === 0) return null;
 
-  // Use importance as a proxy for urgency
   const maxImportance = Math.max(...rows.map(r => r.importance));
   const strength = Math.min(maxImportance / 10, 1);
 
@@ -151,18 +126,16 @@ function detectTimeSensitive(config: ScalyClawConfig['proactive']): Signal | nul
   };
 }
 
-/** Signal 5: Entity trigger — recently updated memories cross-referenced with top entities */
+/** Signal: Entity trigger — recently updated memories cross-referenced with top entities. */
 function detectEntityTrigger(): Signal | null {
   const d = getDb();
 
-  // Get memories updated in last 24h
   const recentMemories = d.prepare(
     `SELECT id FROM memories WHERE updated_at > datetime('now', '-1 day')`
   ).all() as Array<{ id: string }>;
 
   if (recentMemories.length === 0) return null;
 
-  // Check if any top entities are mentioned in these recent memories
   const topEntities = getTopEntities(5);
   if (topEntities.length === 0) return null;
 
@@ -193,23 +166,22 @@ function detectEntityTrigger(): Signal | null {
   };
 }
 
-/** Signal 6: User pattern — current hour matches typically active window */
+/** Signal: User pattern — current hour matches typically active window. */
 function detectUserPattern(): Signal | null {
   const profile = getProfile();
   const pattern = profile.activityPattern;
   const totalActivity = pattern.reduce((s, v) => s + v, 0);
-  if (totalActivity < 10) return null; // Not enough data
+  if (totalActivity < 10) return null; // not enough history
 
   const now = new Date();
-  const hour = now.getUTCHours(); // Will be adjusted by timezone in timing.ts
+  const hour = now.getUTCHours();
   const hourActivity = pattern[hour] ?? 0;
   const avgActivity = totalActivity / 24;
 
-  // Current hour has above-average activity but user hasn't engaged
   if (hourActivity <= avgActivity) return null;
   if (profile.lastUserMsgAt) {
     const sinceLastMsg = Date.now() - new Date(profile.lastUserMsgAt).getTime();
-    if (sinceLastMsg < 30 * 60_000) return null; // Active within 30 min
+    if (sinceLastMsg < 30 * 60_000) return null; // user active within 30 min
   }
 
   return {
@@ -219,7 +191,7 @@ function detectUserPattern(): Signal | null {
   };
 }
 
-/** Signal 7: Return from absence — user came back after long absence */
+/** Signal: Return from absence — user came back after long absence. */
 async function detectReturnFromAbsence(config: ScalyClawConfig['proactive']): Promise<Signal | null> {
   const profile = getProfile();
   if (!profile.lastUserMsgAt) return null;
@@ -227,7 +199,6 @@ async function detectReturnFromAbsence(config: ScalyClawConfig['proactive']): Pr
   const absenceMs = Date.now() - new Date(profile.lastUserMsgAt).getTime();
   const thresholdMs = config.signals.returnFromAbsenceHours * 3_600_000;
 
-  // Check if user has been active very recently (within 5 min) AND was absent before
   const redis = getRedis();
   const keys = await redis.keys(`${ACTIVITY_KEY_PREFIX}*`);
   let mostRecentActivity = 0;
@@ -242,7 +213,7 @@ async function detectReturnFromAbsence(config: ScalyClawConfig['proactive']): Pr
   if (mostRecentActivity === 0) return null;
 
   const sinceLastActivity = Date.now() - mostRecentActivity;
-  // User returned = active within 5 min, but last tracked profile activity was > threshold
+  // User returned = active within 5 min, but profile activity was > threshold ago
   if (sinceLastActivity > 5 * 60_000) return null;
   if (absenceMs < thresholdMs) return null;
 
@@ -258,26 +229,21 @@ async function detectReturnFromAbsence(config: ScalyClawConfig['proactive']): Pr
 export async function detectAllSignals(config: ScalyClawConfig['proactive']): Promise<Signal[]> {
   const signals: Signal[] = [];
 
-  try {
-    const results = await Promise.allSettled([
-      detectIdle(config),
-      Promise.resolve(detectUnfinishedTopics(config)),
-      Promise.resolve(detectPendingDeliverables()),
-      Promise.resolve(detectTimeSensitive(config)),
-      Promise.resolve(detectEntityTrigger()),
-      Promise.resolve(detectUserPattern()),
-      detectReturnFromAbsence(config),
-    ]);
+  const results = await Promise.allSettled([
+    detectIdle(config),
+    Promise.resolve(detectPendingDeliverables()),
+    Promise.resolve(detectTimeSensitive(config)),
+    Promise.resolve(detectEntityTrigger()),
+    Promise.resolve(detectUserPattern()),
+    detectReturnFromAbsence(config),
+  ]);
 
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value) {
-        signals.push(result.value);
-      } else if (result.status === 'rejected') {
-        log('warn', 'Signal detector failed', { error: String(result.reason) });
-      }
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      signals.push(result.value);
+    } else if (result.status === 'rejected') {
+      log('warn', 'Signal detector failed', { error: String(result.reason) });
     }
-  } catch (err) {
-    log('error', 'Signal detection failed', { error: String(err) });
   }
 
   return signals;
@@ -291,7 +257,6 @@ export function aggregateSignals(
 ): Trigger | null {
   if (signals.length === 0) return null;
 
-  // Find highest-priority trigger type
   let bestType: TriggerType = 'check_in';
   let bestPriority = Infinity;
 
@@ -304,7 +269,6 @@ export function aggregateSignals(
     }
   }
 
-  // Compute weighted aggregate strength
   let totalStrength = 0;
   for (const signal of signals) {
     const triggerType = SIGNAL_TRIGGER_MAP[signal.type];
@@ -312,7 +276,6 @@ export function aggregateSignals(
     totalStrength += signal.strength * weight;
   }
 
-  // Normalize to 0-1 range (divide by max possible weight sum)
   const maxPossible = signals.length * Math.max(...Object.values(weights));
   const aggregateStrength = maxPossible > 0 ? Math.min(totalStrength / maxPossible, 1) : 0;
 
@@ -321,49 +284,4 @@ export function aggregateSignals(
     signals,
     aggregateStrength,
   };
-}
-
-// ─── Find Best Channel for Delivery ─────────────────────────────────
-
-export async function findBestChannel(): Promise<string | null> {
-  const redis = getRedis();
-  const keys = await redis.keys(`${ACTIVITY_KEY_PREFIX}*`);
-  if (keys.length === 0) return null;
-
-  let bestChannel: string | null = null;
-  let bestTs = 0;
-
-  for (const key of keys) {
-    const tsStr = await redis.get(key);
-    if (tsStr) {
-      const ts = Number(tsStr);
-      if (ts > bestTs) {
-        bestTs = ts;
-        bestChannel = key.slice(ACTIVITY_KEY_PREFIX.length);
-      }
-    }
-  }
-
-  return bestChannel;
-}
-
-// ─── Open Topics ────────────────────────────────────────────────────
-
-export function getOpenTopics(): TrackedTopic[] {
-  const d = getDb();
-  return d.prepare(
-    `SELECT * FROM proactive_topics WHERE status = 'open' ORDER BY last_mentioned_at DESC`
-  ).all() as TrackedTopic[];
-}
-
-export function expireOldTopics(expiryHours: number): number {
-  const d = getDb();
-  d.prepare(
-    `UPDATE proactive_topics
-     SET status = 'expired'
-     WHERE status = 'open'
-       AND last_mentioned_at < datetime('now', ? || ' hours')`
-  ).run(`-${expiryHours}`);
-  const row = d.prepare('SELECT changes() as c').get() as { c: number };
-  return row.c;
 }

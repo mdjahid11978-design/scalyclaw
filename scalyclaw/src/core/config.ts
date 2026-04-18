@@ -147,7 +147,6 @@ export interface ScalyClawConfig {
     signals: {
       idleThresholdMinutes: number;
       idleMaxDays: number;
-      topicExpiryHours: number;
       timeSensitiveLeadMinutes: number;
       returnFromAbsenceHours: number;
     };
@@ -162,7 +161,6 @@ export interface ScalyClawConfig {
       cooldownSeconds: {
         urgent: number;
         deliverable: number;
-        follow_up: number;
         insight: number;
         check_in: number;
       };
@@ -181,7 +179,6 @@ export interface ScalyClawConfig {
     triggerWeights: {
       urgent: number;
       deliverable: number;
-      follow_up: number;
       insight: number;
       check_in: number;
     };
@@ -235,7 +232,6 @@ export const CONFIG_DEFAULTS: ScalyClawConfig = {
     signals: {
       idleThresholdMinutes: 120,
       idleMaxDays: 7,
-      topicExpiryHours: 72,
       timeSensitiveLeadMinutes: 60,
       returnFromAbsenceHours: 24,
     },
@@ -250,7 +246,6 @@ export const CONFIG_DEFAULTS: ScalyClawConfig = {
       cooldownSeconds: {
         urgent: 1800,
         deliverable: 7200,
-        follow_up: 14400,
         insight: 28800,
         check_in: 43200,
       },
@@ -263,7 +258,6 @@ export const CONFIG_DEFAULTS: ScalyClawConfig = {
     triggerWeights: {
       urgent: 1.0,
       deliverable: 0.9,
-      follow_up: 0.7,
       insight: 0.5,
       check_in: 0.3,
     },

@@ -39,7 +39,8 @@ export interface ProactiveCheckData {
 }
 
 export interface ProactiveEvalData {
-  signals: Array<{ type: string; strength: number; metadata: Record<string, unknown> }>;
+  // Deep evaluation re-derives signals from the database/Redis when it runs.
+  // Nothing needs to be passed through the queue payload.
 }
 
 export interface SkillExecutionData {
